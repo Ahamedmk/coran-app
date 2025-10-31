@@ -358,7 +358,7 @@ const App = () => {
             </div>
           )}
 
-          <div className="grid grid-cols-4 gap-4 mt-4">
+          <div className="grid grid-cols-4 md:grid-cols-2 gap-2">
             <StatCard 
               icon={Flame} 
               value={userProgress.streak} 

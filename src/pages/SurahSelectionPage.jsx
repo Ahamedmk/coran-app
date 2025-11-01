@@ -1,13 +1,16 @@
 // src/pages/SurahSelectionPage.jsx
-// Page pour choisir une sourate à apprendre
+// Page pour choisir une sourate à apprendre - AVEC PAGES DU MUSHAF
 
 import React, { useState } from 'react';
-import { Search, Filter, BookOpen, CheckCircle, Star, Zap } from 'lucide-react';
+import { Search, Filter, BookOpen, CheckCircle, Star, Zap, FileText } from 'lucide-react';
+import { reciterService } from '../services/reciterService';
 
 const SurahSelectionPage = ({ surahs, learnedSurahs, onSelectSurah, onBack }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [difficultyFilter, setDifficultyFilter] = useState('all');
   const [showLearned, setShowLearned] = useState(false);
+  const [selectedPage, setSelectedPage] = useState(null);
+  const [showPageFilter, setShowPageFilter] = useState(false);
 
   const getDifficulty = (verses) => {
     if (verses <= 10) return 'facile';
@@ -38,7 +41,14 @@ const SurahSelectionPage = ({ surahs, learnedSurahs, onSelectSurah, onBack }) =>
     const isLearned = learnedSurahs.includes(surah.number);
     const matchesLearnedFilter = showLearned ? isLearned : !isLearned;
     
-    return matchesSearch && matchesDifficulty && matchesLearnedFilter;
+    // Filtre par page
+    let matchesPage = true;
+    if (selectedPage !== null) {
+      const pages = reciterService.getSurahPages(surah);
+      matchesPage = selectedPage >= pages.startPage && selectedPage <= pages.endPage;
+    }
+    
+    return matchesSearch && matchesDifficulty && matchesLearnedFilter && matchesPage;
   });
 
   // Recommandations
@@ -46,42 +56,34 @@ const SurahSelectionPage = ({ surahs, learnedSurahs, onSelectSurah, onBack }) =>
     .filter(s => getDifficulty(s.numberOfAyahs) === 'facile' && !learnedSurahs.includes(s.number))
     .slice(0, 3);
 
+  // Générer les options de pages (1-604)
+  const pageOptions = Array.from({ length: 604 }, (_, i) => i + 1);
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20">
         <button
-  onClick={onBack}
-  style={{
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-    color: 'rgba(255, 255, 255, 0.7)',
-    marginBottom: '1rem',
-    transition: 'color 0.3s',
-    background: 'none',
-    border: 'none',
-    cursor: 'pointer',
-    padding: '0.25rem'
-  }}
-  onMouseEnter={(e) => e.target.style.color = 'rgba(255, 255, 255, 1)'}
-  onMouseLeave={(e) => e.target.style.color = 'rgba(255, 255, 255, 0.7)'}
->
-  <span style={{ fontSize: '1.5rem' }}>←</span>
-  <span>Retour</span>
-</button>
+          onClick={onBack}
+          className="flex items-center gap-2 text-white/70 hover:text-white mb-4 transition-colors"
+        >
+          <span className="text-2xl">←</span>
+          <span>Retour</span>
+        </button>
 
         <h1 className="text-3xl font-bold mb-2">Choisis ta Sourate</h1>
         <p className="text-white/70">
           {showLearned
             ? `${learnedSurahs.length} sourate${learnedSurahs.length > 1 ? 's' : ''} déjà apprise${learnedSurahs.length > 1 ? 's' : ''}`
+            : selectedPage
+            ? `Sourates de la page ${selectedPage} du Mushaf`
             : "Sélectionne la sourate que tu veux mémoriser"}
         </p>
       </div>
 
-      {/* Recommendations (si pas de filtre learned) */}
-      {!showLearned && recommendedSurahs.length > 0 && (
-        <div className="bg-linear-to-r from-green-500/20 to-emerald-500/20 backdrop-blur-lg rounded-2xl p-6 border border-green-500/30">
+      {/* Recommendations (si pas de filtre learned ni page) */}
+      {!showLearned && !selectedPage && recommendedSurahs.length > 0 && (
+        <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 backdrop-blur-lg rounded-2xl p-6 border border-green-500/30">
           <h2 className="text-xl font-bold mb-2 flex items-center gap-2">
             <Star className="text-yellow-400" />
             Recommandations pour débuter
@@ -91,20 +93,28 @@ const SurahSelectionPage = ({ surahs, learnedSurahs, onSelectSurah, onBack }) =>
           </p>
           
           <div className="grid md:grid-cols-3 gap-4">
-            {recommendedSurahs.map(surah => (
-              <div
-                key={surah.number}
-                onClick={() => onSelectSurah(surah)}
-                className="bg-white/10 rounded-xl p-4 cursor-pointer hover:bg-white/20 transition-all hover:scale-105 border border-white/20"
-              >
-                <div className="flex items-start justify-between mb-2">
-                  <div className="text-3xl mb-2">{surah.name}</div>
-                  <Zap className="text-yellow-400 w-5 h-5" />
+            {recommendedSurahs.map(surah => {
+              const pages = reciterService.getSurahPages(surah);
+              return (
+                <div
+                  key={surah.number}
+                  onClick={() => onSelectSurah(surah)}
+                  className="bg-white/10 rounded-xl p-4 cursor-pointer hover:bg-white/20 transition-all hover:scale-105 border border-white/20"
+                >
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="text-3xl mb-2">{surah.name}</div>
+                    <Zap className="text-yellow-400 w-5 h-5" />
+                  </div>
+                  <div className="font-bold mb-1">{surah.englishName}</div>
+                  <div className="text-sm text-white/60">
+                    {surah.numberOfAyahs} versets • Facile
+                  </div>
+                  <div className="text-xs text-white/50 mt-1">
+                    📄 Pages {pages.startPage}-{pages.endPage}
+                  </div>
                 </div>
-                <div className="font-bold mb-1">{surah.englishName}</div>
-                <div className="text-sm text-white/60">{surah.numberOfAyahs} versets • Facile</div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
@@ -124,56 +134,72 @@ const SurahSelectionPage = ({ surahs, learnedSurahs, onSelectSurah, onBack }) =>
             />
           </div>
 
-          {/* Filtres */}
-          <div className="flex gap-2">
+          {/* Filtre par page */}
+          <div className="relative">
+            <FileText className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/50 w-5 h-5" />
             <select
-              value={difficultyFilter}
-              onChange={(e) => setDifficultyFilter(e.target.value)}
-              className="flex-1 px-1 py-3 rounded-lg bg-white/10 border border-white/20 text-white focus:outline-none focus:ring-2 focus:ring-purple-500 cursor-pointer w-2.5"
+              value={selectedPage || ''}
+              onChange={(e) => setSelectedPage(e.target.value ? parseInt(e.target.value) : null)}
+              className="w-full pl-10 pr-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white focus:outline-none focus:ring-2 focus:ring-purple-500 cursor-pointer"
             >
-              <option value="all">Toutes difficultés</option>
-              <option value="facile">✅ Facile (≤10 versets)</option>
-              <option value="moyen">⚡ Moyen (11-50 versets)</option>
-              <option value="difficile">🔥 Avancé (sup à 50 versets)</option>
+              <option value="">Toutes les pages (1-604)</option>
+              {pageOptions.map(page => (
+                <option key={page} value={page}>
+                  Page {page} du Mushaf
+                </option>
+              ))}
             </select>
-
-            <button
-  onClick={() => setShowLearned(!showLearned)}
-  style={{
-    padding: '0.75rem 1.5rem',
-    borderRadius: '0.5rem',
-    fontWeight: '600',
-    transition: 'all 0.3s',
-    backgroundColor: showLearned ? '#22c55e' : 'rgba(255, 255, 255, 0.1)',
-    color: showLearned ? 'white' : 'rgba(255, 255, 255, 0.7)',
-    border: 'none',
-    cursor: 'pointer'
-  }}
-  onMouseEnter={(e) => {
-    if (!showLearned) {
-      e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
-    }
-  }}
-  onMouseLeave={(e) => {
-    if (!showLearned) {
-      e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-    }
-  }}
->
-  {showLearned ? (
-    <>
-      <CheckCircle style={{ display: 'inline', width: '1.25rem', height: '1.25rem', marginRight: '0.5rem', verticalAlign: 'middle' }} />
-      Apprises
-    </>
-  ) : (
-    <>
-      <BookOpen style={{ display: 'inline', width: '1.25rem', height: '1.25rem', marginRight: '0.5rem', verticalAlign: 'middle' }} />
-      À apprendre
-    </>
-  )}
-</button>
           </div>
         </div>
+
+        <div className="flex gap-2 mt-4">
+          <select
+            value={difficultyFilter}
+            onChange={(e) => setDifficultyFilter(e.target.value)}
+            className="flex-1 px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white focus:outline-none focus:ring-2 focus:ring-purple-500 cursor-pointer"
+          >
+            <option value="all">Toutes difficultés</option>
+            <option value="facile">✅ Facile (≤10 versets)</option>
+            <option value="moyen">⚡ Moyen (11-50 versets)</option>
+            <option value="difficile">🔥 Avancé (>50 versets)</option>
+          </select>
+
+          <button
+            onClick={() => setShowLearned(!showLearned)}
+            className={`px-6 py-3 rounded-lg font-semibold transition-all ${
+              showLearned
+                ? 'bg-green-500 text-white'
+                : 'bg-white/10 text-white/70 hover:bg-white/20'
+            }`}
+          >
+            {showLearned ? (
+              <>
+                <CheckCircle className="inline mr-2 w-5 h-5" />
+                Apprises
+              </>
+            ) : (
+              <>
+                <BookOpen className="inline mr-2 w-5 h-5" />
+                À apprendre
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* Indicateur si filtre page actif */}
+        {selectedPage && (
+          <div className="mt-4 bg-blue-500/20 border border-blue-500/30 rounded-lg p-3 flex items-center justify-between">
+            <span className="text-sm">
+              🔍 Filtré par page {selectedPage} du Mushaf
+            </span>
+            <button
+              onClick={() => setSelectedPage(null)}
+              className="text-sm px-3 py-1 bg-white/10 hover:bg-white/20 rounded-lg transition-all"
+            >
+              Réinitialiser
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Résultats */}
@@ -189,11 +215,20 @@ const SurahSelectionPage = ({ surahs, learnedSurahs, onSelectSurah, onBack }) =>
           <div className="text-center py-12 text-white/60">
             <div className="text-6xl mb-4">🔍</div>
             <p>Aucune sourate trouvée avec ces critères</p>
+            {selectedPage && (
+              <button
+                onClick={() => setSelectedPage(null)}
+                className="mt-4 px-6 py-2 bg-purple-500/20 hover:bg-purple-500/30 rounded-lg transition-all"
+              >
+                Réinitialiser les filtres
+              </button>
+            )}
           </div>
         ) : (
           <div className="grid gap-4 max-h-[600px] overflow-y-auto pr-2">
             {filteredSurahs.map(surah => {
               const isLearned = learnedSurahs.includes(surah.number);
+              const pages = reciterService.getSurahPages(surah);
               
               return (
                 <div
@@ -225,6 +260,9 @@ const SurahSelectionPage = ({ surahs, learnedSurahs, onSelectSurah, onBack }) =>
                         <span className="text-xs px-3 py-1 rounded-full bg-blue-500">
                           {surah.numberOfAyahs} versets
                         </span>
+                        <span className="text-xs px-3 py-1 rounded-full bg-amber-500">
+                          📄 Pages {pages.startPage}-{pages.endPage}
+                        </span>
                       </div>
                     </div>
                     <div className="text-right">
@@ -241,7 +279,7 @@ const SurahSelectionPage = ({ surahs, learnedSurahs, onSelectSurah, onBack }) =>
                             e.stopPropagation();
                             onSelectSurah(surah);
                           }}
-                          className="bg-linear-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold px-6 py-2 rounded-lg transition-all hover:scale-105 text-sm"
+                          className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold px-6 py-2 rounded-lg transition-all hover:scale-105 text-sm"
                         >
                           Choisir
                         </button>
@@ -253,7 +291,7 @@ const SurahSelectionPage = ({ surahs, learnedSurahs, onSelectSurah, onBack }) =>
                   {isLearned && (
                     <div className="mt-4">
                       <div className="w-full bg-white/20 rounded-full h-2 overflow-hidden">
-                        <div className="h-full bg-linear-to-r from-green-400 to-emerald-500 w-full" />
+                        <div className="h-full bg-gradient-to-r from-green-400 to-emerald-500 w-full" />
                       </div>
                     </div>
                   )}

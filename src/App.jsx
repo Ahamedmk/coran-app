@@ -459,6 +459,7 @@ const App = () => {
             onLearnVerse={learnVerse}
             onChangeSurah={handleChangeSurah}
             onComplete={handleSurahComplete}
+            userId={user.id}
           />
         )}
 

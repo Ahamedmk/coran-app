@@ -1,7 +1,7 @@
 // src/pages/FocusedLearningPage.jsx
 // Page focalisée sur UNE sourate à apprendre - AVEC AUDIO ET RÉCITATEURS
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { BookOpen, CheckCircle, ArrowLeft, Info, Sparkles, Volume2, User, ChevronDown, Play, Pause } from 'lucide-react';
 import { quranAPI } from '../services/quranAPI';
 import { reciterService } from '../services/reciterService';
@@ -13,7 +13,7 @@ const FocusedLearningPage = ({
   onLearnVerse, 
   onChangeSurah, 
   onComplete,
-  userId // Ajouter userId pour sauvegarder les préférences
+  userId
 }) => {
   const [surahData, setSurahData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -33,9 +33,57 @@ const FocusedLearningPage = ({
   const [currentRepeat, setCurrentRepeat] = useState(0);
   const [showRepeatMenu, setShowRepeatMenu] = useState(false);
   const [isPlayingSurah, setIsPlayingSurah] = useState(false);
+  const [surahPlaybackIndex, setSurahPlaybackIndex] = useState(0);
   
   // États pour les pages
   const [surahPages, setSurahPages] = useState({ startPage: 1, endPage: 1 });
+
+  // refs
+  const isPlayingSurahRef = useRef(false);
+  const currentAudioRef = useRef(null);
+  const surahDataRef = useRef(null);
+  const selectedReciterRef = useRef(null);
+
+   // 🔁 refs pour la répétition d’un verset
+  const repeatCountRef = useRef(1);
+  const currentRepeatRef = useRef(0);
+
+    useEffect(() => {
+    repeatCountRef.current = repeatCount;
+  }, [repeatCount]);
+
+  useEffect(() => {
+    currentRepeatRef.current = currentRepeat;
+  }, [currentRepeat]);
+
+
+  useEffect(() => {
+    surahDataRef.current = surahData;
+  }, [surahData]);
+
+  useEffect(() => {
+    selectedReciterRef.current = selectedReciter;
+  }, [selectedReciter]);
+
+  // 🔧 helper scroll
+  const scrollToVerse = (verseNumber) => {
+    const verseEl = document.getElementById(`verse-${verseNumber}`);
+    // scroll de la page (comme avant)
+    if (verseEl) {
+      verseEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    // scroll du container (si on est dans le bloc)
+    const container = document.getElementById('verses-container');
+    if (container && verseEl) {
+      const containerRect = container.getBoundingClientRect();
+      const verseRect = verseEl.getBoundingClientRect();
+      const offset = verseRect.top - containerRect.top + container.scrollTop - (container.clientHeight / 2) + (verseRect.height / 2);
+      container.scrollTo({
+        top: offset,
+        behavior: 'smooth'
+      });
+    }
+  };
 
   // Charger les récitateurs au démarrage
   useEffect(() => {
@@ -44,7 +92,6 @@ const FocusedLearningPage = ({
       const recitersData = await reciterService.getReciters();
       setReciters(recitersData);
       
-      // Charger le récitateur préféré de l'utilisateur
       if (userId) {
         const preferredReciter = await reciterService.getPreferredReciter(userId);
         const found = recitersData.find(r => r.id === preferredReciter.id);
@@ -65,8 +112,8 @@ const FocusedLearningPage = ({
       setLoading(true);
       const data = await quranAPI.getSurah(surah.number);
       setSurahData(data);
-      
-      // Calculer les pages
+      surahDataRef.current = data;
+
       const pages = reciterService.getSurahPages(surah);
       setSurahPages(pages);
       
@@ -78,149 +125,239 @@ const FocusedLearningPage = ({
   // Nettoyer l'audio quand on quitte
   useEffect(() => {
     return () => {
-      if (currentAudio) {
-        currentAudio.pause();
-        setCurrentAudio(null);
+      if (currentAudioRef.current) {
+        currentAudioRef.current.pause();
+        currentAudioRef.current = null;
       }
     };
-  }, [currentAudio]);
+  }, []);
+
+  // 🔧 Scroll automatique quand UN verset est en lecture (lecture manuelle ou lecture sourate)
+    // 🔧 Scroll automatique UNIQUEMENT quand la sourate est en lecture
+  useEffect(() => {
+    if (playingVerseId && isPlayingSurahRef.current) {
+      const container = document.getElementById('verses-container');
+      const verseEl = document.getElementById(`verse-${playingVerseId}`);
+      if (container && verseEl) {
+        const containerRect = container.getBoundingClientRect();
+        const verseRect = verseEl.getBoundingClientRect();
+        const offset = verseRect.top - containerRect.top + container.scrollTop - (container.clientHeight / 2) + (verseRect.height / 2);
+        container.scrollTo({
+          top: offset,
+          behavior: 'smooth'
+        });
+      } else if (verseEl) {
+        verseEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+  }, [playingVerseId]);
+
 
   const handleReciterChange = async (reciter) => {
     setSelectedReciter(reciter);
     setShowReciterMenu(false);
     
-    // Sauvegarder la préférence
-    if (userId) {
-      await reciterService.savePreferredReciter(userId, reciter);
+    if (currentAudioRef.current) {
+      currentAudioRef.current.pause();
+      currentAudioRef.current = null;
     }
+    setCurrentAudio(null);
+    setPlayingVerseId(null);
+    setIsPlaying(false);
+    setIsPlayingSurah(false);
+    isPlayingSurahRef.current = false;
     
-    // Arrêter l'audio en cours
-    if (currentAudio) {
-      currentAudio.pause();
-      setCurrentAudio(null);
-      setPlayingVerseId(null);
-      setIsPlaying(false);
+    if (userId) {
+      try {
+        await reciterService.savePreferredReciter(userId, reciter);
+      } catch (error) {
+        console.error('Erreur sauvegarde récitateur:', error);
+      }
     }
   };
 
-  const playVerseAudio = async (verseNumber, repeat = false) => {
-    // Si c'est une répétition automatique
-    if (repeat && currentRepeat < repeatCount) {
-      setCurrentRepeat(prev => prev + 1);
-    } else if (repeat) {
-      // Fin de la répétition
+   const playVerseAudio = async (verseNumber, isAutoRepeat = false) => {
+    // si on rejoue manuellement un verset → on reset le compteur
+    if (!isAutoRepeat) {
       setCurrentRepeat(0);
-      setPlayingVerseId(null);
+      currentRepeatRef.current = 0;
+    }
+
+    // si on est en train de jouer ce verset et que l'utilisateur reclique → pause
+    if (playingVerseId === verseNumber && isPlaying && !isAutoRepeat) {
+      if (currentAudioRef.current) {
+        currentAudioRef.current.pause();
+      }
       setIsPlaying(false);
       return;
     }
-    
-    // Si on clique sur le verset en cours de lecture, on met en pause
-    if (playingVerseId === verseNumber && isPlaying && !repeat) {
-      currentAudio.pause();
-      setIsPlaying(false);
-      return;
+
+    // si on relance le même verset en pause → play
+    if (playingVerseId === verseNumber && !isPlaying && !isAutoRepeat) {
+      if (currentAudioRef.current) {
+        currentAudioRef.current.play();
+        setIsPlaying(true);
+        return;
+      }
     }
-    
-    // Si on clique sur le même verset en pause, on reprend
-    if (playingVerseId === verseNumber && !isPlaying && !repeat) {
-      currentAudio.play();
-      setIsPlaying(true);
-      return;
+
+    // arrêter tout audio précédent
+    if (currentAudioRef.current) {
+      currentAudioRef.current.pause();
+      currentAudioRef.current = null;
     }
-    
-    // Arrêter l'audio précédent
-    if (currentAudio) {
-      currentAudio.pause();
-    }
-    
-    // Arrêter la sourate si elle joue
+
+    // arrêter la lecture de la sourate si elle était en cours
     setIsPlayingSurah(false);
-    
-    // Créer un nouveau audio
+    isPlayingSurahRef.current = false;
+
+    // ⚠️ PAS de scroll ici → tu l’as demandé
+    // (on ne scrolle que dans la lecture complète)
+
+    // récupérer l'audio
     const audioUrl = await reciterService.getVerseAudioUrl(
-      selectedReciter.id,
+      selectedReciterRef.current.id,
       surah.number,
       verseNumber
     );
-    
-    console.log('🔊 Lecture audio verset:', audioUrl, 'Répétition:', currentRepeat + 1, '/', repeatCount);
-    
+
     const audio = new Audio(audioUrl);
-    
+    currentAudioRef.current = audio;
+    setCurrentAudio(audio);
+    setPlayingVerseId(verseNumber);
+
     audio.onloadeddata = () => {
       audio.play();
       setIsPlaying(true);
     };
-    
+
     audio.onended = () => {
-      // Si on doit répéter
-      if (currentRepeat + 1 < repeatCount) {
-        setTimeout(() => playVerseAudio(verseNumber, true), 500);
+      // on lit les valeurs *fraîches* depuis les refs
+      const currentRep = currentRepeatRef.current;
+      const maxRep = repeatCountRef.current;
+
+      const next = currentRep + 1;
+
+      if (next < maxRep) {
+        // on met à jour le ref + le state
+        currentRepeatRef.current = next;
+        setCurrentRepeat(next);
+
+        setTimeout(() => {
+          // on relance en mode auto
+          playVerseAudio(verseNumber, true);
+        }, 200);
       } else {
+        // fin des répétitions
+        currentRepeatRef.current = 0;
         setCurrentRepeat(0);
         setPlayingVerseId(null);
         setIsPlaying(false);
+        currentAudioRef.current = null;
       }
     };
-    
+
     audio.onerror = (e) => {
-      console.error('Erreur audio:', e);
+      console.error('❌ Erreur audio:', e);
       alert(`Erreur lors du chargement de l'audio.\n\nURL: ${audioUrl}\n\nCe récitateur ne supporte peut-être pas tous les versets.\nEssaie Mishary Alafasy.`);
       setPlayingVerseId(null);
       setIsPlaying(false);
       setCurrentRepeat(0);
+      currentRepeatRef.current = 0;
+      currentAudioRef.current = null;
     };
-    
-    setCurrentAudio(audio);
-    setPlayingVerseId(verseNumber);
+  };
+
+
+  // lecture sourate verset par verset
+  const playNextVerseInSurah = async (index) => {
+    const data = surahDataRef.current;
+    if (!isPlayingSurahRef.current) return;
+    if (!data || !data.ayahs || index >= data.ayahs.length) {
+      setIsPlayingSurah(false);
+      isPlayingSurahRef.current = false;
+      setPlayingVerseId(null);
+      setIsPlaying(false);
+      currentAudioRef.current = null;
+      setSurahPlaybackIndex(0);
+      return;
+    }
+
+    const verseNumber = index + 1;
+    const audioUrl = await reciterService.getVerseAudioUrl(
+      selectedReciterRef.current.id,
+      surah.number,
+      verseNumber
+    );
+
+    const audio = new Audio(audioUrl);
+    currentAudioRef.current = audio;
+
+    audio.onloadeddata = () => {
+      if (!isPlayingSurahRef.current) {
+        audio.pause();
+        return;
+      }
+      audio.play();
+      setIsPlaying(true);
+      setPlayingVerseId(verseNumber);
+      setSurahPlaybackIndex(index);
+    };
+
+    audio.onended = () => {
+      setTimeout(() => {
+        if (isPlayingSurahRef.current) {
+          playNextVerseInSurah(index + 1);
+        }
+      }, 200);
+    };
+
+    audio.onerror = (e) => {
+      console.error('❌ Erreur audio verset:', verseNumber, e);
+      setTimeout(() => {
+        if (isPlayingSurahRef.current) {
+          playNextVerseInSurah(index + 1);
+        }
+      }, 200);
+    };
   };
 
   const playSurahAudio = () => {
-    // Arrêter l'audio de verset si actif
-    if (currentAudio) {
-      currentAudio.pause();
-      setPlayingVerseId(null);
-      setIsPlaying(false);
+    // stop audio verset
+    if (currentAudioRef.current) {
+      currentAudioRef.current.pause();
+      currentAudioRef.current = null;
     }
+    setPlayingVerseId(null);
+    setIsPlaying(false);
+    setCurrentRepeat(0);
     
-    // Toggle play/pause pour la sourate
-    if (isPlayingSurah) {
-      if (currentAudio) {
-        currentAudio.pause();
-      }
+    // si déjà en lecture → stop
+    if (isPlayingSurahRef.current) {
       setIsPlayingSurah(false);
+      isPlayingSurahRef.current = false;
+      setPlayingVerseId(null);
+      setSurahPlaybackIndex(0);
       return;
     }
-    
-    const audioUrl = reciterService.getSurahAudioUrl(selectedReciter.id, surah.number);
-    console.log('🔊 Lecture sourate complète:', audioUrl);
-    
-    const audio = new Audio(audioUrl);
-    
-    audio.onloadeddata = () => {
-      audio.play();
-      setIsPlayingSurah(true);
-    };
-    
-    audio.onended = () => {
-      setIsPlayingSurah(false);
-      setCurrentAudio(null);
-    };
-    
-    audio.onerror = (e) => {
-      console.error('Erreur audio sourate:', e);
-      alert(`Erreur lors du chargement de la sourate.\n\nCe récitateur ne supporte peut-être pas cette sourate.\nEssaie Mishary Alafasy.`);
-      setIsPlayingSurah(false);
-    };
-    
-    setCurrentAudio(audio);
+
+    // 🔥 ICI : scroll immédiat vers le premier verset
+    // on le fait AVANT de lancer la lecture
+    scrollToVerse(1);
+
+    // on dit tout de suite : "le verset en cours c'est 1"
+    setPlayingVerseId(1);
+
+    // démarrer
+    setIsPlayingSurah(true);
+    isPlayingSurahRef.current = true;
+    setSurahPlaybackIndex(0);
+    playNextVerseInSurah(0);
   };
 
   const handleLearnVerse = () => {
     onLearnVerse();
     
-    // Célébration si sourate complétée
     if (progress + 1 === surah.numberOfAyahs) {
       setShowCelebration(true);
       setTimeout(() => {
@@ -261,7 +398,7 @@ const FocusedLearningPage = ({
         </div>
       )}
 
-      {/* Header avec bouton changer + Sélecteur de récitateur */}
+      {/* Header */}
       <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20">
         <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
           <button
@@ -310,7 +447,11 @@ const FocusedLearningPage = ({
               }}
             >
               {isPlayingSurah ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
-              <span>{isPlayingSurah ? 'Pause sourate' : 'Écouter sourate'}</span>
+              <span>
+                {isPlayingSurah 
+                  ? `Arrêter (${playingVerseId}/${surah.numberOfAyahs})` 
+                  : 'Écouter sourate'}
+              </span>
             </button>
 
             {/* Sélecteur de récitateur */}
@@ -632,62 +773,106 @@ const FocusedLearningPage = ({
         </div>
       )}
 
-      {/* Tous les versets pour référence */}
+      {/* Tous les versets */}
       <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20">
         <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
           <BookOpen className="text-blue-400" />
           Tous les versets
         </h2>
         <p className="text-white/70 text-sm mb-4">
-          Consulte l'ensemble de la sourate • Clique sur 🔊 pour écouter
+          Consulte l'ensemble de la sourate • Le verset en cours de lecture est mis en évidence
         </p>
 
-        <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
-          {surahData?.ayahs?.map((ayah, index) => (
-            <div
-              key={index}
-              style={{
-                borderRadius: '0.75rem',
-                padding: '1rem',
-                border: '1px solid',
-                transition: 'all 0.3s',
-                borderColor: index < (progress || 0)
-                  ? 'rgba(34, 197, 94, 0.3)'
-                  : index === (progress || 0)
-                  ? '#a855f7'
-                  : 'rgba(255, 255, 255, 0.1)',
-                backgroundColor: index < (progress || 0)
-                  ? 'rgba(34, 197, 94, 0.1)'
-                  : index === (progress || 0)
-                  ? 'rgba(168, 85, 247, 0.2)'
-                  : 'rgba(255, 255, 255, 0.05)',
-                boxShadow: index === (progress || 0) ? '0 0 0 2px #a855f7' : 'none'
-              }}
-            >
-              <div className="flex items-start justify-between mb-2">
-                <span style={{
-                  fontSize: '0.75rem',
-                  padding: '0.25rem 0.5rem',
-                  borderRadius: '9999px',
-                  backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                  color: 'white'
-                }}>
-                  Verset {ayah.numberInSurah}
-                </span>
-                <div className="flex items-center gap-2">
-                  {index < (progress || 0) && (
-                    <CheckCircle className="w-5 h-5 text-green-400" />
-                  )}
-                  {index === (progress || 0) && (
-                    <Sparkles className="w-5 h-5 text-yellow-400 animate-pulse" />
-                  )}
+        <div className="space-y-4 max-h-96 overflow-y-auto pr-2" id="verses-container">
+          {surahData?.ayahs?.map((ayah, index) => {
+            const isCurrentlyPlaying = playingVerseId === ayah.numberInSurah && isPlaying && !isPlayingSurah;
+            const isSurahPlayingThisVerse = isPlayingSurah && playingVerseId === ayah.numberInSurah;
+            
+            return (
+              <div
+                key={index}
+                id={`verse-${ayah.numberInSurah}`}
+                style={{
+                  borderRadius: '0.75rem',
+                  padding: '1rem',
+                  border: '2px solid',
+                  transition: 'all 0.3s',
+                  borderColor: (isCurrentlyPlaying || isSurahPlayingThisVerse)
+                    ? '#3b82f6'
+                    : index < (progress || 0)
+                    ? 'rgba(34, 197, 94, 0.3)'
+                    : index === (progress || 0)
+                    ? '#a855f7'
+                    : 'rgba(255, 255, 255, 0.1)',
+                  backgroundColor: (isCurrentlyPlaying || isSurahPlayingThisVerse)
+                    ? 'rgba(59, 130, 246, 0.3)'
+                    : index < (progress || 0)
+                    ? 'rgba(34, 197, 94, 0.1)'
+                    : index === (progress || 0)
+                    ? 'rgba(168, 85, 247, 0.2)'
+                    : 'rgba(255, 255, 255, 0.05)',
+                  boxShadow: (isCurrentlyPlaying || isSurahPlayingThisVerse)
+                    ? '0 0 0 3px rgba(59, 130, 246, 0.5), 0 0 20px rgba(59, 130, 246, 0.4)' 
+                    : index === (progress || 0) 
+                    ? '0 0 0 2px #a855f7' 
+                    : 'none',
+                  transform: (isCurrentlyPlaying || isSurahPlayingThisVerse) ? 'scale(1.02)' : 'scale(1)'
+                }}
+              >
+                <div className="flex items-start justify-between mb-2">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span style={{
+                      fontSize: '0.75rem',
+                      padding: '0.25rem 0.5rem',
+                      borderRadius: '9999px',
+                      backgroundColor: (isCurrentlyPlaying || isSurahPlayingThisVerse) ? '#3b82f6' : 'rgba(255, 255, 255, 0.1)',
+                      color: 'white',
+                      fontWeight: (isCurrentlyPlaying || isSurahPlayingThisVerse) ? 'bold' : 'normal'
+                    }}>
+                      Verset {ayah.numberInSurah}
+                    </span>
+                    {isCurrentlyPlaying && (
+                      <span style={{
+                        fontSize: '0.75rem',
+                        padding: '0.25rem 0.5rem',
+                        borderRadius: '9999px',
+                        backgroundColor: '#3b82f6',
+                        color: 'white',
+                        fontWeight: 'bold',
+                        animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite'
+                      }}>
+                        🔊 En lecture {currentRepeat > 0 ? `${currentRepeat}/${repeatCount}` : ''}
+                      </span>
+                    )}
+                    {isSurahPlayingThisVerse && (
+                      <span style={{
+                        fontSize: '0.75rem',
+                        padding: '0.25rem 0.5rem',
+                        borderRadius: '9999px',
+                        backgroundColor: '#10b981',
+                        color: 'white',
+                        fontWeight: 'bold',
+                        animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite'
+                      }}>
+                        🔊 Sourate {ayah.numberInSurah}/{surah.numberOfAyahs}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {index < (progress || 0) && (
+                      <CheckCircle className="w-5 h-5 text-green-400" />
+                    )}
+                    {index === (progress || 0) && !isCurrentlyPlaying && !isSurahPlayingThisVerse && (
+                      <Sparkles className="w-5 h-5 text-yellow-400 animate-pulse" />
+                    )}
+                  </div>
+                </div>
+                <div className="text-2xl md:text-3xl leading-loose text-right" style={{ color: 'white' }}>
+                  {ayah.text}
                 </div>
               </div>
-              <div className="text-2xl md:text-3xl leading-loose text-right" style={{ color: 'white' }}>
-                {ayah.text}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>

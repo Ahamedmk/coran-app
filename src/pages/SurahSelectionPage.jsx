@@ -65,7 +65,21 @@ const SurahSelectionPage = ({ surahs, learnedSurahs, onSelectSurah, onBack }) =>
       <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20">
         <button
           onClick={onBack}
-          className="flex items-center gap-2 text-white/70 hover:text-white mb-4 transition-colors"
+          // className="flex items-center gap-2 text-white/70 hover:text-white mb-4 transition-colors"
+          style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  padding: '0.5rem 1rem',
+                  borderRadius: '0.5rem',
+                  backgroundColor: 'rgba(168, 85, 247, 0.2)',
+                  border: '1px solid rgba(168, 85, 247, 0.3)',
+                  transition: 'all 0.3s',
+                  color: 'white',
+                  cursor: 'pointer'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(168, 85, 247, 0.3)'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(168, 85, 247, 0.2)'}
         >
           <span className="text-2xl">←</span>
           <span>Retour</span>
@@ -156,7 +170,7 @@ const SurahSelectionPage = ({ surahs, learnedSurahs, onSelectSurah, onBack }) =>
           <select
             value={difficultyFilter}
             onChange={(e) => setDifficultyFilter(e.target.value)}
-            className="flex-1 px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white focus:outline-none focus:ring-2 focus:ring-purple-500 cursor-pointer"
+            className="flex-1 px-2 py-3 rounded-lg bg-white/10 border border-white/20 text-white focus:outline-none focus:ring-2 focus:ring-purple-500 cursor-pointer"
           >
             <option value="all">Toutes difficultés</option>
             <option value="facile">✅ Facile (≤10 versets)</option>
@@ -166,11 +180,25 @@ const SurahSelectionPage = ({ surahs, learnedSurahs, onSelectSurah, onBack }) =>
 
           <button
             onClick={() => setShowLearned(!showLearned)}
-            className={`px-6 py-3 rounded-lg font-semibold transition-all ${
-              showLearned
-                ? 'bg-green-500 text-white'
-                : 'bg-white/10 text-white/70 hover:bg-white/20'
-            }`}
+            // className={`px-6 py-3 rounded-lg font-semibold transition-all ${
+            //   showLearned
+            //     ? 'bg-green-500 text-white'
+            //     : 'bg-white/10 text-white/70 hover:bg-white/20'
+            // }`}
+            style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  padding: '0.5rem 0.5rem',
+                  borderRadius: '0.5rem',
+                  backgroundColor: 'rgba(233, 225, 241, 0.2)',
+                  border: '1px solid rgba(14, 3, 24, 0.3)',
+                  transition: 'all 0.3s',
+                  color: 'white',
+                  cursor: 'pointer'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(168, 85, 247, 0.3)'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(168, 85, 247, 0.2)'}
           >
             {showLearned ? (
               <>

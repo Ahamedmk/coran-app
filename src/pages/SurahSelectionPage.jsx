@@ -137,7 +137,7 @@ const SurahSelectionPage = ({ surahs, learnedSurahs, onSelectSurah, onBack }) =>
       <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20">
         <div className="grid md:grid-cols-2 gap-4">
           {/* Recherche */}
-          <div className="relative">
+          {/* <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/50 w-5 h-5" />
             <input
               type="text"
@@ -146,12 +146,12 @@ const SurahSelectionPage = ({ surahs, learnedSurahs, onSelectSurah, onBack }) =>
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-500"
             />
-          </div>
+          </div> */}
 
           {/* Filtre par page */}
-          <div className="relative">
+          {/* <div className="relative">
             <FileText className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/50 w-5 h-5" />
-            {/* <select
+            <select
               value={selectedPage || ''}
               onChange={(e) => setSelectedPage(e.target.value ? parseInt(e.target.value) : null)}
               className="w-full pl-10 pr-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white focus:outline-none focus:ring-2 focus:ring-purple-500 cursor-pointer"
@@ -162,12 +162,12 @@ const SurahSelectionPage = ({ surahs, learnedSurahs, onSelectSurah, onBack }) =>
                   Page {page} du Mushaf
                 </option>
               ))}
-            </select> */}
-          </div>
+            </select>
+          </div> */}
         </div>
 
         <div className="flex gap-2 mt-4">
-          <select
+          {/* <select
             value={difficultyFilter}
             onChange={(e) => setDifficultyFilter(e.target.value)}
             className="flex-1 px-2 py-3 rounded-lg bg-white/10 border border-white/20 text-white focus:outline-none focus:ring-2 focus:ring-purple-500 cursor-pointer"
@@ -176,7 +176,7 @@ const SurahSelectionPage = ({ surahs, learnedSurahs, onSelectSurah, onBack }) =>
             <option value="facile">✅ Facile (≤10 versets)</option>
             <option value="moyen">⚡ Moyen (11-50 versets)</option>
             <option value="difficile">🔥 Avancé (>50 versets)</option>
-          </select>
+          </select> */}
 
           <button
             onClick={() => setShowLearned(!showLearned)}

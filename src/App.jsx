@@ -432,7 +432,7 @@ const App = () => {
           {/* Stats Cards - Responsive Grid */}
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 4fr))',
             gap: 'clamp(0.5rem, 2vw, 1rem)',
             marginBottom: '1rem'
           }}>

@@ -151,7 +151,7 @@ const SurahSelectionPage = ({ surahs, learnedSurahs, onSelectSurah, onBack }) =>
           {/* Filtre par page */}
           <div className="relative">
             <FileText className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/50 w-5 h-5" />
-            <select
+            {/* <select
               value={selectedPage || ''}
               onChange={(e) => setSelectedPage(e.target.value ? parseInt(e.target.value) : null)}
               className="w-full pl-10 pr-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white focus:outline-none focus:ring-2 focus:ring-purple-500 cursor-pointer"
@@ -162,7 +162,7 @@ const SurahSelectionPage = ({ surahs, learnedSurahs, onSelectSurah, onBack }) =>
                   Page {page} du Mushaf
                 </option>
               ))}
-            </select>
+            </select> */}
           </div>
         </div>
 

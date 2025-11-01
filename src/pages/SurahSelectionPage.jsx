@@ -166,11 +166,11 @@ const SurahSelectionPage = ({ surahs, learnedSurahs, onSelectSurah, onBack }) =>
           </div> */}
         </div>
 
-        <div className="flex gap-2 mt-4">
+        <div className="flex gap-4 mt-4">
           <select
             value={difficultyFilter}
             onChange={(e) => setDifficultyFilter(e.target.value)}
-            className="flex-1 px-2 py-3 rounded-lg bg-white/10 border border-white/20 text-white focus:outline-none focus:ring-2 focus:ring-purple-500 cursor-pointer"
+            className="flex-1  py-3 rounded-lg bg-white/10 border border-white/20 text-white focus:outline-none focus:ring-2 focus:ring-purple-500 cursor-pointer"
           >
             <option value="all">Toutes difficultés</option>
             <option value="facile">✅ Facile (≤10 versets)</option>

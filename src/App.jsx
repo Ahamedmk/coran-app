@@ -279,7 +279,7 @@ const App = () => {
 }
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-indigo-900 via-purple-900 to-pink-900 text-white p-4">
+    <div className="min-h-screen bg-linear-to-br from-indigo-900 via-purple-900 to-pink-900 text-white p-4 max-w-md w-full">
       {showCelebration && (
         <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
           <div className="animate-bounce text-8xl">🎉</div>

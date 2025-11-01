@@ -75,8 +75,17 @@ const FocusedLearningPage = ({
       <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20">
         <button
           onClick={onChangeSurah}
-          className="flex items-center gap-2 text-white/70 hover:text-white mb-4 transition-colors"
-        >
+          style={{
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    padding: '0.75rem',
+    borderRadius: '0.5rem',
+    transition: 'all 0.3s'
+  }}
+  onMouseEnter={(e) => e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.2)'}
+  onMouseLeave={(e) => e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.1)'}
+  
+>
+       
           <ArrowLeft className="w-5 h-5" />
           <span>Changer de sourate</span>
         </button>

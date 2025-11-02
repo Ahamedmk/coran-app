@@ -1,8 +1,19 @@
 // src/pages/FocusedLearningPage.jsx
-// Page focalisée sur UNE sourate à apprendre - AVEC AUDIO ET RÉCITATEURS
+// Page focalisée sur UNE sourate à apprendre - AVEC AUDIO, RÉCITATEURS et TRADUCTION
 
 import React, { useState, useEffect, useRef } from 'react';
-import { BookOpen, CheckCircle, ArrowLeft, Info, Sparkles, Volume2, User, ChevronDown, Play, Pause } from 'lucide-react';
+import { 
+  BookOpen, 
+  CheckCircle, 
+  ArrowLeft, 
+  Info, 
+  Sparkles, 
+  Volume2, 
+  User, 
+  ChevronDown, 
+  Play, 
+  Pause 
+} from 'lucide-react';
 import { quranAPI } from '../services/quranAPI';
 import { reciterService } from '../services/reciterService';
 import ProgressBar from '../components/ProgressBar';
@@ -19,13 +30,13 @@ const FocusedLearningPage = ({
   const [loading, setLoading] = useState(true);
   const [showCelebration, setShowCelebration] = useState(false);
   
-  // États pour les récitateurs
+  // récitateurs
   const [reciters, setReciters] = useState([]);
   const [selectedReciter, setSelectedReciter] = useState(null);
   const [showReciterMenu, setShowReciterMenu] = useState(false);
   const [loadingReciters, setLoadingReciters] = useState(true);
   
-  // États pour l'audio
+  // audio
   const [currentAudio, setCurrentAudio] = useState(null);
   const [playingVerseId, setPlayingVerseId] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -35,27 +46,36 @@ const FocusedLearningPage = ({
   const [isPlayingSurah, setIsPlayingSurah] = useState(false);
   const [surahPlaybackIndex, setSurahPlaybackIndex] = useState(0);
   
-  // États pour les pages
+  // pages
   const [surahPages, setSurahPages] = useState({ startPage: 1, endPage: 1 });
 
-  // refs
+  // refs audio
   const isPlayingSurahRef = useRef(false);
   const currentAudioRef = useRef(null);
   const surahDataRef = useRef(null);
   const selectedReciterRef = useRef(null);
 
-   // 🔁 refs pour la répétition d’un verset
+  // refs répétition
   const repeatCountRef = useRef(1);
   const currentRepeatRef = useRef(0);
 
-    useEffect(() => {
+  // 🔵 ETATS TRADUCTION
+  // pour ouvrir / fermer la traduction d’un seul verset
+  const [openTranslations, setOpenTranslations] = useState({});
+  // pour stocker toute la sourate traduite
+  const [surahTranslation, setSurahTranslation] = useState(null);
+  const [loadingTranslation, setLoadingTranslation] = useState(false);
+  // bouton "tout afficher"
+  const [showAllTranslations, setShowAllTranslations] = useState(false);
+
+  // garder refs à jour
+  useEffect(() => {
     repeatCountRef.current = repeatCount;
   }, [repeatCount]);
 
   useEffect(() => {
     currentRepeatRef.current = currentRepeat;
   }, [currentRepeat]);
-
 
   useEffect(() => {
     surahDataRef.current = surahData;
@@ -65,14 +85,12 @@ const FocusedLearningPage = ({
     selectedReciterRef.current = selectedReciter;
   }, [selectedReciter]);
 
-  // 🔧 helper scroll
+  // helper scroll
   const scrollToVerse = (verseNumber) => {
     const verseEl = document.getElementById(`verse-${verseNumber}`);
-    // scroll de la page (comme avant)
     if (verseEl) {
       verseEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
-    // scroll du container (si on est dans le bloc)
     const container = document.getElementById('verses-container');
     if (container && verseEl) {
       const containerRect = container.getBoundingClientRect();
@@ -85,7 +103,7 @@ const FocusedLearningPage = ({
     }
   };
 
-  // Charger les récitateurs au démarrage
+  // charger récitateurs
   useEffect(() => {
     const loadReciters = async () => {
       setLoadingReciters(true);
@@ -106,7 +124,7 @@ const FocusedLearningPage = ({
     loadReciters();
   }, [userId]);
 
-  // Charger les données de la sourate
+  // charger sourate arabe
   useEffect(() => {
     const loadSurahData = async () => {
       setLoading(true);
@@ -116,13 +134,18 @@ const FocusedLearningPage = ({
 
       const pages = reciterService.getSurahPages(surah);
       setSurahPages(pages);
+
+      // à chaque changement de sourate on réinitialise les traductions
+      setSurahTranslation(null);
+      setOpenTranslations({});
+      setShowAllTranslations(false);
       
       setLoading(false);
     };
     loadSurahData();
-  }, [surah.number]);
+  }, [surah.number, surah.englishName]);
 
-  // Nettoyer l'audio quand on quitte
+  // nettoyage
   useEffect(() => {
     return () => {
       if (currentAudioRef.current) {
@@ -132,8 +155,7 @@ const FocusedLearningPage = ({
     };
   }, []);
 
-  // 🔧 Scroll automatique quand UN verset est en lecture (lecture manuelle ou lecture sourate)
-    // 🔧 Scroll automatique UNIQUEMENT quand la sourate est en lecture
+  // scroll auto UNIQUEMENT lecture sourate
   useEffect(() => {
     if (playingVerseId && isPlayingSurahRef.current) {
       const container = document.getElementById('verses-container');
@@ -152,6 +174,51 @@ const FocusedLearningPage = ({
     }
   }, [playingVerseId]);
 
+  // =================== TRADUCTION ===================
+
+  // bouton FR sur 1 seul verset
+  const handleToggleTranslation = async (verseNumber) => {
+    // si on a déjà la sourate traduite → on lit dedans
+    if (surahTranslation && surahTranslation.ayahs) {
+      setOpenTranslations((prev) => ({
+        ...prev,
+        [verseNumber]: !prev[verseNumber]
+      }));
+      return;
+    }
+
+    // sinon on va chercher UNIQUEMENT ce verset
+    try {
+      const tr = await quranAPI.getVerseTranslation(surah.number, verseNumber, 'fr.hamidullah');
+      if (!tr) return;
+      setOpenTranslations((prev) => ({
+        ...prev,
+        [verseNumber]: !prev[verseNumber],
+        // on peut aussi stocker le texte pour éviter de le redemander, mais on a déjà un service qui met en cache
+      }));
+    } catch (err) {
+      console.error('Erreur de traduction :', err);
+    }
+  };
+
+  // bouton "traduire toute la sourate"
+  const handleToggleAllTranslations = async () => {
+    // si on a déjà la trad → on fait juste afficher/masquer
+    if (surahTranslation) {
+      setShowAllTranslations((prev) => !prev);
+      return;
+    }
+    // sinon on la télécharge
+    setLoadingTranslation(true);
+    const data = await quranAPI.getSurahTranslation(surah.number, 'fr.hamidullah');
+    setSurahTranslation(data);
+    setLoadingTranslation(false);
+    setShowAllTranslations(true);
+  };
+
+  // =================================================
+  //                   AUDIO
+  // =================================================
 
   const handleReciterChange = async (reciter) => {
     setSelectedReciter(reciter);
@@ -176,14 +243,14 @@ const FocusedLearningPage = ({
     }
   };
 
-   const playVerseAudio = async (verseNumber, isAutoRepeat = false) => {
-    // si on rejoue manuellement un verset → on reset le compteur
+  const playVerseAudio = async (verseNumber, isAutoRepeat = false) => {
+    // reset compteur si clic manuel
     if (!isAutoRepeat) {
       setCurrentRepeat(0);
       currentRepeatRef.current = 0;
     }
 
-    // si on est en train de jouer ce verset et que l'utilisateur reclique → pause
+    // pause si même verset
     if (playingVerseId === verseNumber && isPlaying && !isAutoRepeat) {
       if (currentAudioRef.current) {
         currentAudioRef.current.pause();
@@ -192,7 +259,7 @@ const FocusedLearningPage = ({
       return;
     }
 
-    // si on relance le même verset en pause → play
+    // reprendre si en pause
     if (playingVerseId === verseNumber && !isPlaying && !isAutoRepeat) {
       if (currentAudioRef.current) {
         currentAudioRef.current.play();
@@ -201,20 +268,16 @@ const FocusedLearningPage = ({
       }
     }
 
-    // arrêter tout audio précédent
+    // stop précédent
     if (currentAudioRef.current) {
       currentAudioRef.current.pause();
       currentAudioRef.current = null;
     }
 
-    // arrêter la lecture de la sourate si elle était en cours
+    // sortir du mode "sourate"
     setIsPlayingSurah(false);
     isPlayingSurahRef.current = false;
 
-    // ⚠️ PAS de scroll ici → tu l’as demandé
-    // (on ne scrolle que dans la lecture complète)
-
-    // récupérer l'audio
     const audioUrl = await reciterService.getVerseAudioUrl(
       selectedReciterRef.current.id,
       surah.number,
@@ -232,23 +295,17 @@ const FocusedLearningPage = ({
     };
 
     audio.onended = () => {
-      // on lit les valeurs *fraîches* depuis les refs
       const currentRep = currentRepeatRef.current;
       const maxRep = repeatCountRef.current;
-
       const next = currentRep + 1;
 
       if (next < maxRep) {
-        // on met à jour le ref + le state
         currentRepeatRef.current = next;
         setCurrentRepeat(next);
-
         setTimeout(() => {
-          // on relance en mode auto
           playVerseAudio(verseNumber, true);
         }, 200);
       } else {
-        // fin des répétitions
         currentRepeatRef.current = 0;
         setCurrentRepeat(0);
         setPlayingVerseId(null);
@@ -268,8 +325,7 @@ const FocusedLearningPage = ({
     };
   };
 
-
-  // lecture sourate verset par verset
+  // lecture sourate complète
   const playNextVerseInSurah = async (index) => {
     const data = surahDataRef.current;
     if (!isPlayingSurahRef.current) return;
@@ -323,7 +379,6 @@ const FocusedLearningPage = ({
   };
 
   const playSurahAudio = () => {
-    // stop audio verset
     if (currentAudioRef.current) {
       currentAudioRef.current.pause();
       currentAudioRef.current = null;
@@ -332,7 +387,6 @@ const FocusedLearningPage = ({
     setIsPlaying(false);
     setCurrentRepeat(0);
     
-    // si déjà en lecture → stop
     if (isPlayingSurahRef.current) {
       setIsPlayingSurah(false);
       isPlayingSurahRef.current = false;
@@ -341,20 +395,17 @@ const FocusedLearningPage = ({
       return;
     }
 
-    // 🔥 ICI : scroll immédiat vers le premier verset
-    // on le fait AVANT de lancer la lecture
+    // scroll direct vers le premier
     scrollToVerse(1);
 
-    // on dit tout de suite : "le verset en cours c'est 1"
     setPlayingVerseId(1);
-
-    // démarrer
     setIsPlayingSurah(true);
     isPlayingSurahRef.current = true;
     setSurahPlaybackIndex(0);
     playNextVerseInSurah(0);
   };
 
+  // mémorisation
   const handleLearnVerse = () => {
     onLearnVerse();
     
@@ -398,7 +449,7 @@ const FocusedLearningPage = ({
         </div>
       )}
 
-      {/* Header */}
+      {/* HEADER */}
       <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20">
         <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
           <button
@@ -423,7 +474,7 @@ const FocusedLearningPage = ({
           </button>
 
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-            {/* Bouton écouter sourate complète */}
+            {/* écouter sourate */}
             <button
               onClick={playSurahAudio}
               style={{
@@ -452,6 +503,25 @@ const FocusedLearningPage = ({
                   ? `Arrêter (${playingVerseId}/${surah.numberOfAyahs})` 
                   : 'Écouter sourate'}
               </span>
+            </button>
+
+            {/* 🔵 bouton traduction de toute la sourate */}
+            <button
+              onClick={handleToggleAllTranslations}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                padding: '0.5rem 1rem',
+                borderRadius: '9999px',
+                backgroundColor: showAllTranslations ? 'rgba(59,130,246,0.3)' : 'rgba(59,130,246,0.15)',
+                border: '1px solid rgba(59,130,246,0.3)',
+                color: 'white',
+                fontWeight: 500,
+                cursor: 'pointer'
+              }}
+            >
+              {loadingTranslation ? 'Chargement...' : showAllTranslations ? 'Masquer FR' : 'Traduire la sourate'}
             </button>
 
             {/* Sélecteur de récitateur */}
@@ -547,7 +617,7 @@ const FocusedLearningPage = ({
           </div>
         </div>
 
-        {/* Progression */}
+        {/* progression */}
         <div className="mb-6">
           <div className="flex justify-between text-sm mb-2">
             <span className="font-semibold">Ta progression</span>
@@ -565,7 +635,7 @@ const FocusedLearningPage = ({
           </div>
         </div>
 
-        {/* Stats rapides */}
+        {/* stats */}
         <div className="grid grid-cols-3 gap-3">
           <div className="bg-green-500/20 rounded-lg p-3 text-center">
             <div className="text-2xl font-bold">{Math.round(progressPercentage)}%</div>
@@ -582,7 +652,7 @@ const FocusedLearningPage = ({
         </div>
       </div>
 
-      {/* Contexte de révélation */}
+      {/* contexte */}
       <div className="bg-gradient-to-r from-amber-500/20 to-yellow-500/20 backdrop-blur-lg rounded-2xl p-6 border border-amber-500/30">
         <h2 className="text-2xl font-bold mb-3 flex items-center gap-2">
           <Info className="text-amber-400" />
@@ -598,7 +668,7 @@ const FocusedLearningPage = ({
         </p>
       </div>
 
-      {/* Verset actuel à apprendre */}
+      {/* bloc verset à apprendre */}
       {versesLeft > 0 && surahData?.ayahs && (
         <div className="bg-gradient-to-r from-purple-500/20 to-pink-500/20 backdrop-blur-lg rounded-2xl p-8 border border-purple-500/30">
           <div className="flex items-center justify-between mb-6">
@@ -619,7 +689,7 @@ const FocusedLearningPage = ({
               <span>Verset {surahData.ayahs[progress || 0]?.numberInSurah} sur {surah.numberOfAyahs}</span>
               
               <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                {/* Menu de répétition */}
+                {/* menu répétition */}
                 <div style={{ position: 'relative' }}>
                   <button
                     onClick={() => setShowRepeatMenu(!showRepeatMenu)}
@@ -691,7 +761,7 @@ const FocusedLearningPage = ({
                   )}
                 </div>
 
-                {/* Bouton audio pour le verset actuel */}
+                {/* bouton audio verset */}
                 <button
                   onClick={() => {
                     setCurrentRepeat(0);
@@ -734,8 +804,63 @@ const FocusedLearningPage = ({
                     </>
                   )}
                 </button>
+
+                {/* bouton FR du verset en cours */}
+                <button
+                  onClick={() => handleToggleTranslation((progress || 0) + 1)}
+                  style={{
+                    width: '2.4rem',
+                    height: '2.4rem',
+                    borderRadius: '9999px',
+                    border: '2px solid rgba(255,255,255,0.4)',
+                    background: openTranslations[(progress || 0) + 1] ? 'white' : 'rgba(255,255,255,0.1)',
+                    color: openTranslations[(progress || 0) + 1] ? '#1f2937' : 'white',
+                    fontWeight: 700,
+                    fontSize: '0.75rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: '0 10px 20px rgba(0,0,0,0.2)',
+                    cursor: 'pointer'
+                  }}
+                >
+                  FR
+                </button>
               </div>
             </div>
+
+            {/* ✅ affichage traduction pour le verset courant */}
+            {(openTranslations[(progress || 0) + 1] || (showAllTranslations && surahTranslation)) && (
+              <div
+                style={{
+                  marginTop: '1rem',
+                  background: 'rgba(15, 23, 42, 0.35)',
+                  borderLeft: '4px solid rgba(251, 191, 36, 1)',
+                  borderRadius: '0.75rem',
+                  padding: '0.9rem 1rem'
+                }}
+              >
+                <p
+                  style={{
+                    fontSize: '0.95rem',
+                    lineHeight: 1.6,
+                    color: '#fef9c3',
+                    fontFamily: "'system-ui', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                    letterSpacing: '0.01em'
+                  }}
+                >
+                  {showAllTranslations && surahTranslation
+                    ? surahTranslation.ayahs[(progress || 0)]?.text
+                    : null}
+                  {!showAllTranslations && !surahTranslation
+                    ? '...'
+                    : null}
+                </p>
+                <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.35)' }}>
+                  Traduction française • {surahTranslation?.edition?.name || 'fr.hamidullah'}
+                </span>
+              </div>
+            )}
           </div>
 
           <div className="bg-blue-500/20 border border-blue-500/30 rounded-xl p-4 mb-6">
@@ -773,7 +898,7 @@ const FocusedLearningPage = ({
         </div>
       )}
 
-      {/* Tous les versets */}
+      {/* TOUS LES VERSETS */}
       <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20">
         <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
           <BookOpen className="text-blue-400" />
@@ -787,7 +912,10 @@ const FocusedLearningPage = ({
           {surahData?.ayahs?.map((ayah, index) => {
             const isCurrentlyPlaying = playingVerseId === ayah.numberInSurah && isPlaying && !isPlayingSurah;
             const isSurahPlayingThisVerse = isPlayingSurah && playingVerseId === ayah.numberInSurah;
-            
+            const isTranslationOpen =
+              showAllTranslations ||
+              openTranslations[ayah.numberInSurah];
+
             return (
               <div
                 key={index}
@@ -859,6 +987,26 @@ const FocusedLearningPage = ({
                     )}
                   </div>
                   <div className="flex items-center gap-2">
+                    {/* bouton FR par verset */}
+                    <button
+                      onClick={() => handleToggleTranslation(ayah.numberInSurah)}
+                      style={{
+                        width: '2.4rem',
+                        height: '2.4rem',
+                        borderRadius: '9999px',
+                        border: '2px solid rgba(255,255,255,0.35)',
+                        background: isTranslationOpen ? 'white' : 'rgba(255,255,255,0.1)',
+                        color: isTranslationOpen ? '#1f2937' : 'white',
+                        fontWeight: 700,
+                        fontSize: '0.75rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      FR
+                    </button>
                     {index < (progress || 0) && (
                       <CheckCircle className="w-5 h-5 text-green-400" />
                     )}
@@ -867,9 +1015,40 @@ const FocusedLearningPage = ({
                     )}
                   </div>
                 </div>
+
                 <div className="text-2xl md:text-3xl leading-loose text-right" style={{ color: 'white' }}>
                   {ayah.text}
                 </div>
+
+                {/* ✅ bloc traduction stylé */}
+                {isTranslationOpen && (
+                  <div
+                    style={{
+                      marginTop: '0.75rem',
+                      background: 'rgba(15, 23, 42, 0.35)',
+                      borderLeft: '4px solid rgba(251, 191, 36, 1)',
+                      borderRadius: '0.75rem',
+                      padding: '0.75rem 1rem'
+                    }}
+                  >
+                    <p
+                      style={{
+                        fontSize: '0.9rem',
+                        lineHeight: 1.55,
+                        color: '#fef9c3',
+                        fontFamily: "'system-ui', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+                        letterSpacing: '0.01em'
+                      }}
+                    >
+                      {surahTranslation?.ayahs
+                        ? surahTranslation.ayahs[index]?.text
+                        : 'Chargement...'}
+                    </p>
+                    <span style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.3)' }}>
+                      Traduction française • {surahTranslation?.edition?.name || 'fr.hamidullah'}
+                    </span>
+                  </div>
+                )}
               </div>
             );
           })}
@@ -879,7 +1058,7 @@ const FocusedLearningPage = ({
   );
 };
 
-// Fonction helper pour le contexte
+// helper contexte
 const getSurahContext = (surahNumber) => {
   const contexts = {
     1: "Al-Fatiha est l'ouverture du Coran, révélée à La Mecque. C'est la sourate la plus récitée, présente dans chaque unité de prière. Elle résume l'essence de l'Islam : louange à Allah, reconnaissance de Sa souveraineté, et demande de guidance.",

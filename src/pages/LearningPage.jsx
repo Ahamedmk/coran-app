@@ -48,7 +48,7 @@ const LearningPage = ({ surah, progress = 0, onLearnVerse, onChangeSurah, onBack
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 overflow-x-hidden w-full max-w-full">
       {/* Célébration sourate complète */}
       {showCelebration && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -76,7 +76,8 @@ const LearningPage = ({ surah, progress = 0, onLearnVerse, onChangeSurah, onBack
       )}
 
       {/* Header avec progression */}
-      <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20">
+      <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20 w-full max-w-full
+">
         <button
           onClick={onBack}
           className="flex items-center gap-2 text-white/70 hover:text-white mb-4 transition-colors"
@@ -118,7 +119,8 @@ const LearningPage = ({ surah, progress = 0, onLearnVerse, onChangeSurah, onBack
       </div>
 
       {/* Contexte de la sourate */}
-      <div className="bg-linear-to-r from-blue-500/20 to-cyan-500/20 backdrop-blur-lg rounded-2xl p-6 border border-blue-500/30">
+      <div className="bg-linear-to-r from-blue-500/20 to-cyan-500/20 backdrop-blur-lg rounded-2xl p-6 border border-blue-500/30 w-full max-w-full
+">
         <h2 className="text-xl font-bold mb-3 flex items-center gap-2">
           <Info className="text-blue-400" />
           Contexte de la Révélation
@@ -140,7 +142,8 @@ const LearningPage = ({ surah, progress = 0, onLearnVerse, onChangeSurah, onBack
 
       {/* Zone d'apprentissage */}
       {!isCompleted ? (
-        <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20">
+        <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20 w-full max-w-full
+">
           <h2 className="text-2xl font-bold mb-6 text-center">
             Verset {progress + 1} / {surah.numberOfAyahs}
           </h2>
@@ -188,7 +191,8 @@ const LearningPage = ({ surah, progress = 0, onLearnVerse, onChangeSurah, onBack
         </div>
       ) : (
         // Sourate complétée
-        <div className="bg-linear-to-br from-green-500/20 to-emerald-500/20 backdrop-blur-lg rounded-2xl p-8 border border-green-500/30 text-center">
+        <div className="bg-linear-to-br from-green-500/20 to-emerald-500/20 backdrop-blur-lg rounded-2xl p-8 border border-green-500/30 text-center w-full max-w-full
+">
           <div className="text-8xl mb-6">🌟</div>
           <h2 className="text-3xl font-bold mb-4">Sourate Complétée !</h2>
           <p className="text-xl text-white/90 mb-8">
@@ -227,7 +231,8 @@ const LearningPage = ({ surah, progress = 0, onLearnVerse, onChangeSurah, onBack
 
       {/* Révision de tous les versets appris */}
       {progress > 0 && !isCompleted && (
-        <div className="bg-white/5 backdrop-blur-lg rounded-2xl p-6 border border-white/10">
+        <div className="bg-white/5 backdrop-blur-lg rounded-2xl p-6 border border-white/10 w-full max-w-full
+">
           <h3 className="text-lg font-bold mb-4">Versets déjà mémorisés</h3>
           <div className="space-y-3 max-h-60 overflow-y-auto">
             {surahData && surahData.ayahs && surahData.ayahs.slice(0, progress).map((ayah, index) => (

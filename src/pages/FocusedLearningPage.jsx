@@ -17,6 +17,8 @@ import {
 import { quranAPI } from '../services/quranAPI';
 import { reciterService } from '../services/reciterService';
 import ProgressBar from '../components/ProgressBar';
+import { getSurahTopic } from '../data/surahTopics';
+
 
 const FocusedLearningPage = ({ 
   surah, 
@@ -653,20 +655,22 @@ const FocusedLearningPage = ({
       </div>
 
       {/* contexte */}
-      <div className="bg-gradient-to-r from-amber-500/20 to-yellow-500/20 backdrop-blur-lg rounded-2xl p-6 border border-amber-500/30">
-        <h2 className="text-2xl font-bold mb-3 flex items-center gap-2">
-          <Info className="text-amber-400" />
-          Contexte de Révélation
-        </h2>
-        <p className="text-white/90 leading-relaxed">
-          {surahData?.englishNameTranslation && (
-            <span className="font-semibold block mb-2">
-              "{surahData.englishNameTranslation}"
-            </span>
-          )}
-          {getSurahContext(surah.number)}
-        </p>
-      </div>
+      {/* À propos de cette sourate */}
+{(() => {
+  const topic = getSurahTopic(surah.number);
+  return (
+    <div className="bg-gradient-to-r from-amber-500/20 to-yellow-500/20 backdrop-blur-lg rounded-2xl p-6 border border-amber-500/30">
+      <h2 className="text-2xl font-bold mb-3 flex items-center gap-2">
+        <Info className="text-amber-400" />
+        {topic.title}
+      </h2>
+      <p className="text-white/90 leading-relaxed">
+        {topic.summary}
+      </p>
+    </div>
+  );
+})()}
+
 
       {/* bloc verset à apprendre */}
       {versesLeft > 0 && surahData?.ayahs && (
@@ -1059,19 +1063,6 @@ const FocusedLearningPage = ({
 };
 
 // helper contexte
-const getSurahContext = (surahNumber) => {
-  const contexts = {
-    1: "Al-Fatiha est l'ouverture du Coran, révélée à La Mecque. C'est la sourate la plus récitée, présente dans chaque unité de prière. Elle résume l'essence de l'Islam : louange à Allah, reconnaissance de Sa souveraineté, et demande de guidance.",
-    112: "Al-Ikhlas a été révélée en réponse aux polythéistes qui demandèrent au Prophète ﷺ de décrire son Seigneur. Cette courte sourate définit le Tawhid (monothéisme pur) et équivaut au tiers du Coran selon le Prophète ﷺ.",
-    113: "Al-Falaq est la première des deux sourates protectrices. Révélée à La Mecque, elle enseigne à chercher refuge auprès d'Allah contre les maux de la création, l'obscurité, la sorcellerie et l'envie.",
-    114: "An-Nas, dernière sourate du Coran, complète les sourates protectrices. Elle enseigne à chercher refuge contre les suggestions du diable et les mauvaises pensées. Le Prophète ﷺ recommandait sa récitation quotidienne.",
-  };
-  
-  return contexts[surahNumber] || `Cette sourate fait partie du Coran et contient des enseignements précieux. ${
-    surahNumber <= 9 ? "C'est une sourate longue qui nécessite patience et persévérance." :
-    surahNumber <= 50 ? "C'est une sourate de taille moyenne." :
-    "C'est une sourate courte, idéale pour commencer la mémorisation."
-  }`;
-};
+
 
 export default FocusedLearningPage;

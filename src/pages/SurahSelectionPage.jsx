@@ -166,7 +166,8 @@ const SurahSelectionPage = ({ surahs, learnedSurahs, onSelectSurah, onBack }) =>
           </div> 
         </div>
 
-        <div className="flex gap-4 mt-4">
+        <div className="flex justify-center mt-4">
+          <div className='w-3xs'>
           <select
             value={difficultyFilter}
             onChange={(e) => setDifficultyFilter(e.target.value)}
@@ -177,6 +178,7 @@ const SurahSelectionPage = ({ surahs, learnedSurahs, onSelectSurah, onBack }) =>
             <option value="moyen">⚡ Moyen (11-50 versets)</option>
             <option value="difficile">🔥 Avancé (>50 versets)</option>
           </select>
+          </div>
 
           <button
             onClick={() => setShowLearned(!showLearned)}

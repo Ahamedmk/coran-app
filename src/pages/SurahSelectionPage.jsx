@@ -167,16 +167,34 @@ const SurahSelectionPage = ({ surahs, learnedSurahs, onSelectSurah, onBack }) =>
         </div>
 
         <div className="flex gap-4 mt-4">
-          {/* <select
-            value={difficultyFilter}
-            onChange={(e) => setDifficultyFilter(e.target.value)}
-            className="flex-1  py-3 rounded-lg bg-white/10 border border-white/20 text-white focus:outline-none focus:ring-2 focus:ring-purple-500 cursor-pointer"
-          >
-            <option value="all">Toutes difficultés</option>
-            <option value="facile">✅ Facile (≤10 versets)</option>
-            <option value="moyen">⚡ Moyen (11-50 versets)</option>
-            <option value="difficile">🔥 Avancé (>50 versets)</option>
-          </select> */}
+          {/* Sélecteur de difficulté stylisé */}
+<div className="relative w-full md:w-auto flex-1">
+  {/* Icône à gauche */}
+  <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-white/60 w-5 h-5 pointer-events-none" />
+
+  <select
+    value={difficultyFilter}
+    onChange={(e) => setDifficultyFilter(e.target.value)}
+    className="w-full appearance-none pl-10 pr-10 py-3 rounded-xl bg-gradient-to-r from-purple-600/20 to-pink-600/20 border border-white/20 text-white text-sm md:text-base focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all cursor-pointer"
+  >
+    <option value="all">Toutes difficultés</option>
+    <option value="facile">✅ Facile (≤10 versets)</option>
+    <option value="moyen">⚡ Moyen (11–50 versets)</option>
+    <option value="difficile">🔥 Avancé (>50 versets)</option>
+  </select>
+
+  {/* Flèche personnalisée */}
+  <svg
+    className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-white/70 pointer-events-none transition-transform duration-300"
+    xmlns="http://www.w3.org/2000/svg"
+    fill="none"
+    viewBox="0 0 24 24"
+    stroke="currentColor"
+  >
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+  </svg>
+</div>
+
 
           <button
             onClick={() => setShowLearned(!showLearned)}

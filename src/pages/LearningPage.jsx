@@ -152,7 +152,7 @@ const LearningPage = ({ surah, progress = 0, onLearnVerse, onChangeSurah, onBack
             <div className="space-y-6">
               {/* Verset en arabe */}
               <div className="bg-black/30 rounded-xl p-8 text-center">
-                <div className="text-4xl md:text-5xl leading-loose text-right">
+                <div className="text-4xl md:text-5xl leading-loose text-right arabic-text">
                   {surahData.ayahs[progress].text}
                 </div>
               </div>
@@ -199,7 +199,7 @@ const LearningPage = ({ surah, progress = 0, onLearnVerse, onChangeSurah, onBack
             Masha'Allah ! Tu as mémorisé tous les {surah.numberOfAyahs} versets de {surah.englishName}
           </p>
 
-          <div className="grid md:grid-cols-2 gap-4 mb-8">
+          <div className="grid md:grid-cols-2 gap-4 mb-8 w-full max-w-full overflow-x-hidden">
             <div className="bg-white/10 rounded-xl p-6">
               <div className="text-4xl mb-2">+{surah.numberOfAyahs * 20}</div>
               <div className="text-sm text-white/70">Points gagnés</div>

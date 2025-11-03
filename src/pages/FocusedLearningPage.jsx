@@ -432,7 +432,7 @@ const FocusedLearningPage = ({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 overflow-x-hidden w-full max-w-full">
       {showCelebration && (
         <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm">
           <div className="bg-gradient-to-br from-green-500 to-emerald-500 rounded-2xl p-12 text-center max-w-md animate-bounce">

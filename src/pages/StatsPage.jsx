@@ -5,7 +5,15 @@ import { quranAPI } from '../services/quranAPI';
 import { DifficultyChart, IntervalChart, DifficultyDistributionChart, RetentionChart } from '../components/ReviewCharts';
 
 const Card = ({ children, className='' }) => (
-  <div className={`bg-white/10 backdrop-blur-lg rounded-2xl border border-white/20 ${className}`} style={{padding:'1rem'}}>
+  <div className={className} style={{
+    padding:'1rem',
+    background:'rgba(255, 255, 255, 0.1)',
+    backdropFilter:'blur(16px)',
+    borderRadius:'1rem',
+    border:'1px solid rgba(255, 255, 255, 0.2)',
+    maxWidth:'100%',
+    overflowX:'hidden'
+  }}>
     {children}
   </div>
 );
@@ -64,23 +72,25 @@ export default function StatsPage({ userId }) {
   }, [surahList]);
 
   return (
-    <div className="space-y-6" style={{width:'100%', maxWidth:'100vw', overflowX:'hidden'}}>
+    <div style={{width:'100%', maxWidth:'100%', overflowX:'hidden', display:'flex', flexDirection:'column', gap:'1.5rem'}}>
       <Card>
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          <div className="flex items-center gap-3">
-            <BarChart3 className="text-blue-300" />
+        <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', gap:'0.75rem', flexWrap:'wrap'}}>
+          <div style={{display:'flex', alignItems:'center', gap:'0.75rem'}}>
+            <BarChart3 className="text-blue-300" style={{flexShrink:0}} />
             <div>
-              <h1 className="text-2xl font-bold">Statistiques de Révision</h1>
-              <p className="text-white/70 text-sm">Analyse tes progrès et ta rétention.</p>
+              <h1 style={{fontSize:'1.5rem', fontWeight:'bold', margin:0}}>Statistiques de Révision</h1>
+              <p style={{color:'rgba(255,255,255,0.7)', fontSize:'0.875rem', margin:0}}>Analyse tes progrès et ta rétention.</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <BookOpen className="text-white/70" />
+          <div style={{display:'flex', alignItems:'center', gap:'0.5rem', flexWrap:'wrap', width:'100%', maxWidth:'100%'}}>
+            <BookOpen className="text-white/70" style={{flexShrink:0}} />
             <select
               value={filterSurahId || ''}
               onChange={(e)=>setFilterSurahId(e.target.value ? Number(e.target.value) : null)}
               style={{
-                minWidth: 240,
+                minWidth: 'min(240px, 100%)',
+                maxWidth: '100%',
+                flex: '1 1 auto',
                 background: 'rgba(255, 255, 255, 0.1)',
                 border: '1px solid rgba(255, 255, 255, 0.2)',
                 color: '#fff',
@@ -113,7 +123,9 @@ export default function StatsPage({ userId }) {
                 border:'1px solid rgba(59,130,246,0.35)',
                 color:'#fff',
                 cursor: loading ? 'not-allowed' : 'pointer',
-                opacity: loading ? 0.6 : 1
+                opacity: loading ? 0.6 : 1,
+                flexShrink: 0,
+                whiteSpace: 'nowrap'
               }}
             >
               <RefreshCcw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> 
@@ -124,7 +136,7 @@ export default function StatsPage({ userId }) {
       </Card>
 
       {/* KPIs */}
-      <div className="grid md:grid-cols-4 gap-4">
+      <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(150px, 1fr))', gap:'1rem', width:'100%'}}>
         <Card>
           <div className="text-sm text-white/60">Total révisions</div>
           <div className="text-3xl font-bold">{summary.total}</div>

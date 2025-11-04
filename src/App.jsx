@@ -9,6 +9,12 @@ import { authService } from './services/authService';
 // Composants
 import StatCard from './components/StatCard';
 import ProgressBar from './components/ProgressBar';
+import {
+  DifficultyChart,
+  IntervalChart,
+  DifficultyDistributionChart,
+  RetentionChart
+} from './components/ReviewCharts';
 import BadgesPage from './pages/BadgesPage';
 import RevisionPage from './pages/RevisionPage';
 
@@ -17,6 +23,7 @@ import AuthPage from './pages/AuthPage';
 import OnboardingPage from './pages/OnboardingPage';
 import SurahSelectionPage from './pages/SurahSelectionPage';
 import FocusedLearningPage from './pages/FocusedLearningPage';
+import StatsPage from './pages/StatsPage';
 
 const App = () => {
   // États d'authentification
@@ -585,6 +592,31 @@ const App = () => {
               <Award size={window.innerWidth < 640 ? 16 : 20} />
               <span style={{ display: window.innerWidth < 400 ? 'none' : 'inline' }}>Badges</span>
             </button>
+            <button
+  onClick={() => setCurrentTab('stats')}
+  style={{
+    backgroundColor: currentTab === 'stats' ? 'white' : 'rgba(255,255,255,0.1)',
+    color: currentTab === 'stats' ? '#581c87' : 'rgba(255,255,255,0.7)',
+    flex: '1 1 auto',
+    minWidth: '100px',
+    padding: 'clamp(0.5rem, 2vw, 0.75rem)',
+    borderRadius: '0.5rem',
+    fontWeight: '600',
+    transition: 'all 0.3s',
+    boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)',
+    border: 'none',
+    cursor: 'pointer',
+    fontSize: 'clamp(0.875rem, 2vw, 1rem)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '0.5rem'
+  }}
+>
+  <TrendingUp size={window.innerWidth < 640 ? 16 : 20} />
+  <span style={{ display: window.innerWidth < 400 ? 'none' : 'inline' }}>Stats</span>
+</button>
+
           </div>
         </div>
 
@@ -622,6 +654,11 @@ const App = () => {
           {currentTab === 'badges' && (
             <BadgesPage badges={badges} />
           )}
+
+          {currentTab === 'stats' && (
+  <StatsPage userId={user.id} />
+)}
+
         </div>
 
         {/* Footer - Responsive */}

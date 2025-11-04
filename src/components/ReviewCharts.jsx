@@ -290,4 +290,7 @@ export const RetentionChart = ({ reviewHistory }) => {
           <div className="text-sm font-bold">50-80%</div>
           <div className="text-xs text-white/60">En cours</div>
         </div>
+      </div>
+    </div>
+  )}
         

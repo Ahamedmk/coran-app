@@ -20,7 +20,7 @@ import { reciterService } from '../services/reciterService';
 import ProgressBar from '../components/ProgressBar';
 import { getSurahTopic } from '../data/surahTopics';
 
-const BASMALA_AR = '﷽'; // rendu compact typographique
+const BASMALA_AR = '﷽';
 const BASMALA_TEXT = 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ';
 
 const FocusedLearningPage = ({
@@ -48,7 +48,7 @@ const FocusedLearningPage = ({
   const [currentRepeat, setCurrentRepeat] = useState(0);
   const [showRepeatMenu, setShowRepeatMenu] = useState(false);
   const [isPlayingSurah, setIsPlayingSurah] = useState(false);
-  const [surahPlaybackIndex, setSurahPlaybackIndex] = useState(0); // index dans la liste filtrée (sans basmala)
+  const [surahPlaybackIndex, setSurahPlaybackIndex] = useState(0); // index dans la liste filtrée
   const currentAudioRef = useRef(null);
   const isPlayingSurahRef = useRef(false);
   const surahDataRef = useRef(null);
@@ -91,7 +91,7 @@ const FocusedLearningPage = ({
   useEffect(() => {
     const load = async () => {
       setLoading(true);
-      // remet à zéro états dépendants
+      // reset états trad
       setOpenTranslations({});
       setVerseTranslations({});
       setSurahTranslation(null);
@@ -117,15 +117,16 @@ const FocusedLearningPage = ({
   }, []);
 
   // ========= BASMALA & LISTE FILTRÉE =========
-  const hasBasmalaHeader = surah.number !== 9; // tout sauf at-Tawbah
-  // filtra la basmala si présente en premier verset
+  const hasBasmalaHeader = surah.number !== 9; // sauf at-Tawbah
   const ayahsFiltered = useMemo(() => {
     if (!surahData?.ayahs) return [];
     return surahData.ayahs.filter(a => {
-      // retire le 1er verset si c'est la basmala (texte commence par "بسم" …)
       if (hasBasmalaHeader && a.numberInSurah === 1) {
         const t = (a.text || '').replace(/\s+/g, '');
-        if (t.startsWith('بِسْمِاللَّهِالرَّحْمَٰنِالرَّحِيمِ') || t.startsWith('بسماللهالرحمنالرحيم')) {
+        if (
+          t.startsWith('بِسْمِاللَّهِالرَّحْمَٰنِالرَّحِيمِ') ||
+          t.startsWith('بسماللهالرحمنالرحيم')
+        ) {
           return false;
         }
       }
@@ -133,20 +134,23 @@ const FocusedLearningPage = ({
     });
   }, [surahData, hasBasmalaHeader]);
 
-  // mapping index d'apprentissage (0..n-1) -> numberInSurah réel
   const verseNumberAtIndex = (idx) => ayahsFiltered[idx]?.numberInSurah;
   const effectiveAyahCount = ayahsFiltered.length;
 
-  // recalc progression côté UI avec la liste filtrée
+  const smartHighlight = (verseNumberInSurah) => {
+    const el = document.getElementById(`verse-${verseNumberInSurah}`);
+    if (!el) return;
+    el.classList.add('verse-glow');
+    setTimeout(() => el.classList.remove('verse-glow'), 1200);
+  };
+
   const progressClamped = Math.min(progress, effectiveAyahCount);
   const versesLeft = Math.max(effectiveAyahCount - progressClamped, 0);
   const progressPercentage = effectiveAyahCount > 0 ? (progressClamped / effectiveAyahCount) * 100 : 0;
 
   // =================== TRADUCTIONS ===================
-  // FR par verset (indépendant)
   const handleToggleTranslation = async (verseNumberInSurah) => {
     setOpenTranslations(prev => ({ ...prev, [verseNumberInSurah]: !prev[verseNumberInSurah] }));
-    // si on n'a pas encore ce verset en cache → on le charge
     if (!verseTranslations[verseNumberInSurah]) {
       try {
         const tr = await quranAPI.getVerseTranslation(surah.number, verseNumberInSurah, 'fr.hamidullah');
@@ -159,7 +163,6 @@ const FocusedLearningPage = ({
     }
   };
 
-  // FR de toute la sourate
   const handleToggleAllTranslations = async () => {
     if (surahTranslation) {
       setShowAllTranslations(prev => !prev);
@@ -173,11 +176,9 @@ const FocusedLearningPage = ({
   };
 
   const scrollToVerse = (verseNumberInSurah) => {
-  const el = document.getElementById(`verse-${verseNumberInSurah}`);
-  if (el) {
-    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  }
-};
+    const el = document.getElementById(`verse-${verseNumberInSurah}`);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
 
   // =================== AUDIO ===================
   const stopAnyAudio = () => {
@@ -201,46 +202,55 @@ const FocusedLearningPage = ({
     } catch {}
   };
 
-  const playVerseAudio = async (verseNumberInSurah, isAutoRepeat = false) => {
-    // si clic manuel, reset compteur répétitions
+  // ✅ FIX: utiliser `verseNumber` partout (plus de variable fantôme)
+  const playVerseAudio = async (verseNumber, opts = {}) => {
+    const { isAutoRepeat = false, allowScroll = true } = opts;
+
     if (!isAutoRepeat) {
       setCurrentRepeat(0);
       currentRepeatRef.current = 0;
     }
 
     // toggle pause sur le même verset
-    if (playingVerseId === verseNumberInSurah && isPlaying && !isAutoRepeat) {
+    if (playingVerseId === verseNumber && isPlaying && !isAutoRepeat) {
       currentAudioRef.current?.pause();
       setIsPlaying(false);
       return;
     }
     // reprise lecture même verset
-    if (playingVerseId === verseNumberInSurah && !isPlaying && !isAutoRepeat) {
+    if (playingVerseId === verseNumber && !isPlaying && !isAutoRepeat) {
       currentAudioRef.current?.play();
       setIsPlaying(true);
       return;
     }
 
-    // stop précédent
+    // stop précédent & sortir du mode sourate
     stopAnyAudio();
-    // sortir du mode lecture sourate
     setIsPlayingSurah(false);
     isPlayingSurahRef.current = false;
 
+    const reciterId = selectedReciterRef.current?.id;
+    if (!reciterId) return;
+
     const audioUrl = await reciterService.getVerseAudioUrl(
-      selectedReciterRef.current.id,
+      reciterId,
       surah.number,
-      verseNumberInSurah
+      verseNumber
     );
+
     const audio = new Audio(audioUrl);
     currentAudioRef.current = audio;
-    setPlayingVerseId(verseNumberInSurah);
+    setPlayingVerseId(verseNumber);
 
     audio.onloadeddata = () => {
       audio.play();
       setIsPlaying(true);
-      scrollToVerse(verseNumberInSurah);
+      if (allowScroll) {
+        scrollToVerse(verseNumber);
+        smartHighlight(verseNumber);
+      }
     };
+
     audio.onended = () => {
       const cur = currentRepeatRef.current;
       const max = repeatCountRef.current;
@@ -248,7 +258,9 @@ const FocusedLearningPage = ({
       if (next < max) {
         currentRepeatRef.current = next;
         setCurrentRepeat(next);
-        setTimeout(() => playVerseAudio(verseNumberInSurah, true), 150);
+        setTimeout(() => {
+          playVerseAudio(verseNumber, { isAutoRepeat: true, allowScroll });
+        }, 200);
       } else {
         currentRepeatRef.current = 0;
         setCurrentRepeat(0);
@@ -257,6 +269,7 @@ const FocusedLearningPage = ({
         currentAudioRef.current = null;
       }
     };
+
     audio.onerror = () => {
       alert('Erreur audio. Essaie un autre récitateur.');
       setIsPlaying(false);
@@ -265,57 +278,58 @@ const FocusedLearningPage = ({
     };
   };
 
-  // joue la sourate à partir d'un index filtré (persiste sur pause/reprise)
+  // joue la sourate à partir d'un index filtré (pause/reprise)
   const playFromIndex = async (startIndex) => {
-  const list = ayahsFiltered;
-  if (!list.length) return;
+    const list = ayahsFiltered;
+    if (!list.length) return;
 
-  setSurahPlaybackIndex(startIndex);
+    setSurahPlaybackIndex(startIndex);
 
-  const item = list[startIndex];
-  if (!item) {
-    setIsPlayingSurah(false);
-    isPlayingSurahRef.current = false;
-    stopAnyAudio();
-    setSurahPlaybackIndex(0);
-    return;
-  }
-
-  const verseNo = item.numberInSurah;
-  const audioUrl = await reciterService.getVerseAudioUrl(
-    selectedReciterRef.current.id,
-    surah.number,
-    verseNo
-  );
-
-  currentAudioRef.current?.pause();
-  const audio = new Audio(audioUrl);
-  currentAudioRef.current = audio;
-
-  audio.onloadeddata = () => {
-    if (!isPlayingSurahRef.current) { audio.pause(); return; }
-    audio.play();
-    setIsPlaying(true);
-    setPlayingVerseId(verseNo);
-+   // Ajout du scroll vers le verset en cours
-+   scrollToVerse(verseNo);
-  };
-
-  audio.onended = () => {
-    if (isPlayingSurahRef.current) {
-      setTimeout(() => playFromIndex(startIndex + 1), 120);
+    const item = list[startIndex];
+    if (!item) {
+      setIsPlayingSurah(false);
+      isPlayingSurahRef.current = false;
+      stopAnyAudio();
+      setSurahPlaybackIndex(0);
+      return;
     }
+
+    const verseNo = item.numberInSurah;
+    const reciterId = selectedReciterRef.current?.id;
+    if (!reciterId) return;
+
+    const audioUrl = await reciterService.getVerseAudioUrl(
+      reciterId,
+      surah.number,
+      verseNo
+    );
+
+    currentAudioRef.current?.pause();
+    const audio = new Audio(audioUrl);
+    currentAudioRef.current = audio;
+
+    audio.onloadeddata = () => {
+      if (!isPlayingSurahRef.current) { audio.pause(); return; }
+      audio.play();
+      setIsPlaying(true);
+      setPlayingVerseId(verseNo);
+      scrollToVerse(verseNo);
+      smartHighlight(verseNo);
+    };
+
+    audio.onended = () => {
+      if (isPlayingSurahRef.current) {
+        setTimeout(() => playFromIndex(startIndex + 1), 120);
+      }
+    };
+
+    audio.onerror = () => {
+      if (isPlayingSurahRef.current) {
+        setTimeout(() => playFromIndex(startIndex + 1), 120);
+      }
+    };
   };
 
-  audio.onerror = () => {
-    if (isPlayingSurahRef.current) {
-      setTimeout(() => playFromIndex(startIndex + 1), 120);
-    }
-  };
-};
-
-
-  // bouton principal "Écouter sourate / Arrêter"
   const togglePlaySurah = () => {
     if (isPlayingSurahRef.current) {
       // pause globale
@@ -323,26 +337,24 @@ const FocusedLearningPage = ({
       setIsPlayingSurah(false);
       currentAudioRef.current?.pause();
       setIsPlaying(false);
-      // on garde surahPlaybackIndex tel quel pour reprise
       return;
     }
     // lancer/reprendre depuis l’index courant
     isPlayingSurahRef.current = true;
     setIsPlayingSurah(true);
-    scrollToVerse(ayahsFiltered[surahPlaybackIndex]?.numberInSurah || 1);
+    const firstVerse = ayahsFiltered[surahPlaybackIndex]?.numberInSurah || 1;
+    scrollToVerse(firstVerse);
+    smartHighlight(firstVerse);
     playFromIndex(surahPlaybackIndex);
   };
 
-  // ajout pause/reprise sur CHAQUE verset quand lecture sourate est active
   const pauseAtThisVerse = (verseNumberInSurah) => {
     if (!isPlayingSurahRef.current) return;
-    // si on est sur ce verset → pause
     if (playingVerseId === verseNumberInSurah && isPlaying) {
       currentAudioRef.current?.pause();
       setIsPlaying(false);
       return;
     }
-    // si on n'est pas sur ce verset → se replacer à ce verset et jouer
     const idx = ayahsFiltered.findIndex(a => a.numberInSurah === verseNumberInSurah);
     if (idx >= 0) {
       isPlayingSurahRef.current = true;
@@ -374,7 +386,6 @@ const FocusedLearningPage = ({
     );
   }
 
-  // verset courant (selon progression) → sur la liste filtrée
   const currentVerseNo = verseNumberAtIndex(progressClamped);
 
   return (
@@ -394,7 +405,6 @@ const FocusedLearningPage = ({
       {/* HEADER */}
       <div style={{ background:'rgba(255,255,255,0.1)', backdropFilter:'blur(8px)', borderRadius:'1rem', padding:'1.5rem', border:'1px solid rgba(255,255,255,0.2)', width:'100%', boxSizing:'border-box' }}>
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:'0.75rem', minWidth:0 }}>
-          {/* bouton retour CSS inline (conservé) */}
           <button
             onClick={onChangeSurah}
             style={{ display:'flex', alignItems:'center', gap:'0.5rem', padding:'0.5rem 1rem', borderRadius:'0.5rem', backgroundColor:'rgba(255,255,255,0.1)', transition:'all 0.3s', border:'none', color:'#fff', cursor:'pointer', maxWidth:'100%' }}
@@ -406,7 +416,6 @@ const FocusedLearningPage = ({
           </button>
 
           <div style={{ display:'flex', gap:'0.5rem', flexWrap:'wrap' }}>
-            {/* Écouter / Arrêter (reprise au bon verset) */}
             <button
               onClick={togglePlaySurah}
               style={{ display:'flex', alignItems:'center', gap:'0.5rem', padding:'0.5rem 1rem', borderRadius:'0.5rem', backgroundColor:isPlayingSurah?'#22c55e':'rgba(34,197,94,0.2)', border:'1px solid rgba(34,197,94,0.3)', transition:'all 0.3s', color:'#fff', cursor:'pointer', fontWeight:500 }}
@@ -417,7 +426,6 @@ const FocusedLearningPage = ({
               <span>{isPlayingSurah ? `Pause sourate (${playingVerseId || currentVerseNo || 1}/${effectiveAyahCount})` : 'Écouter sourate'}</span>
             </button>
 
-            {/* FR toute la sourate */}
             <button
               onClick={handleToggleAllTranslations}
               style={{ display:'flex', alignItems:'center', gap:'0.5rem', padding:'0.5rem 1rem', borderRadius:'9999px', backgroundColor: showAllTranslations ? 'rgba(59,130,246,0.3)' : 'rgba(59,130,246,0.15)', border:'1px solid rgba(59,130,246,0.3)', color:'#fff', fontWeight:500, cursor:'pointer' }}
@@ -425,7 +433,6 @@ const FocusedLearningPage = ({
               {loadingTranslation ? 'Chargement...' : showAllTranslations ? 'Masquer FR' : 'Traduire la sourate'}
             </button>
 
-            {/* Sélecteur réciteur (CSS inline conservé) */}
             <div style={{ position:'relative' }}>
               <button
                 onClick={()=>setShowReciterMenu(!showReciterMenu)}
@@ -464,7 +471,7 @@ const FocusedLearningPage = ({
           <div style={{ fontSize:'2.5rem', marginBottom:'1rem' }}>{surah.name}</div>
           <div style={{ display:'flex', justifyContent:'center', gap:'0.5rem', flexWrap:'wrap' }}>
             <span style={{ fontSize:'0.875rem', padding:'0.25rem 0.75rem', borderRadius:'9999px', background:'#3b82f6', color:'#fff' }}>
-              {effectiveAyahCount} versets {/* on affiche le décompte SANS basmala */}
+              {effectiveAyahCount} versets
             </span>
             <span style={{ fontSize:'0.875rem', padding:'0.25rem 0.75rem', borderRadius:'9999px', background:'#a855f7', color:'#fff' }}>
               {surah.revelationType === 'Meccan' ? 'Mecquoise' : 'Médinoise'}
@@ -475,7 +482,7 @@ const FocusedLearningPage = ({
           </div>
         </div>
 
-        {/* BASMALA (en-tête hors décompte) */}
+        {/* BASMALA */}
         {hasBasmalaHeader && (
           <div style={{ background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.15)', borderRadius:'0.75rem', padding:'1rem', marginBottom:'1rem' }}>
             <div style={{ textAlign:'center', fontSize:'1.75rem', lineHeight:1.8 }}>{BASMALA_AR}</div>
@@ -565,9 +572,9 @@ const FocusedLearningPage = ({
                   )}
                 </div>
 
-                {/* audio verset courant */}
+                {/* audio verset courant (sans scroll auto ici) */}
                 <button
-                  onClick={()=>{ setCurrentRepeat(0); playVerseAudio(currentVerseNo); }}
+                  onClick={()=>{ setCurrentRepeat(0); playVerseAudio(currentVerseNo, { allowScroll:false }); }}
                   style={{ display:'flex', alignItems:'center', gap:'0.5rem', padding:'0.5rem 1rem', borderRadius:'0.5rem', backgroundColor:(playingVerseId===currentVerseNo && isPlaying)?'#3b82f6':'rgba(59,130,246,0.2)', border:'1px solid rgba(59,130,246,0.3)', transition:'all 0.3s', color:'#fff', cursor:'pointer' }}
                   onMouseEnter={(e)=>{ if(!(playingVerseId===currentVerseNo && isPlaying)) e.currentTarget.style.backgroundColor='rgba(59,130,246,0.3)'; }}
                   onMouseLeave={(e)=>{ if(!(playingVerseId===currentVerseNo && isPlaying)) e.currentTarget.style.backgroundColor='rgba(59,130,246,0.2)'; }}
@@ -575,7 +582,7 @@ const FocusedLearningPage = ({
                   {playingVerseId===currentVerseNo && isPlaying ? (<><Pause className="w-5 h-5"/><span>{currentRepeat>0?`${currentRepeat}/${repeatCount}`:'Pause'}</span></>) : (<><Volume2 className="w-5 h-5"/><span>Écouter</span></>)}
                 </button>
 
-                {/* FR verset courant (indépendant) */}
+                {/* FR verset courant */}
                 <button
                   onClick={()=>handleToggleTranslation(currentVerseNo)}
                   style={{ width:'2.4rem', height:'2.4rem', borderRadius:'9999px', border:'2px solid rgba(255,255,255,0.4)', background: openTranslations[currentVerseNo] ? '#fff' : 'rgba(255,255,255,0.1)', color: openTranslations[currentVerseNo] ? '#1f2937' : '#fff', fontWeight:700, fontSize:'0.75rem', display:'flex', alignItems:'center', justifyContent:'center', boxShadow:'0 10px 20px rgba(0,0,0,0.2)', cursor:'pointer' }}
@@ -583,7 +590,7 @@ const FocusedLearningPage = ({
                   FR
                 </button>
 
-                {/* Quand la lecture de sourate est active : bouton pause/reprendre à côté du verset courant */}
+                {/* pause/reprendre à ce verset si lecture sourate active */}
                 {isPlayingSurah && (
                   <button
                     onClick={()=>pauseAtThisVerse(currentVerseNo)}
@@ -595,7 +602,7 @@ const FocusedLearningPage = ({
               </div>
             </div>
 
-            {/* bloc FR du verset courant si ouvert */}
+            {/* bloc FR du verset courant */}
             {openTranslations[currentVerseNo] && (
               <div style={{ marginTop:'1rem', background:'rgba(15,23,42,0.35)', borderLeft:'4px solid rgba(251,191,36,1)', borderRadius:'0.75rem', padding:'0.9rem 1rem' }}>
                 <p style={{ fontSize:'0.95rem', lineHeight:1.6, color:'#fef9c3', letterSpacing:'0.01em', wordBreak:'break-word', overflowWrap:'anywhere' }}>

@@ -100,4 +100,31 @@ button:focus-visible {
     animation: none !important;
   }
 }
+/* Scrollbar personnalisée pour les containers de révision */
+.revision-scroll-container::-webkit-scrollbar {
+  width: 8px;
+}
 
+.revision-scroll-container::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+}
+
+.revision-scroll-container::-webkit-scrollbar-thumb {
+  background: rgba(168, 85, 247, 0.5);
+  border-radius: 4px;
+}
+
+.revision-scroll-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(168, 85, 247, 0.7);
+}
+
+/* Animation smooth pour le hover des cartes */
+.surah-card {
+  transition: all 0.2s ease-in-out;
+}
+
+.surah-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(168, 85, 247, 0.3);
+}

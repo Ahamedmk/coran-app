@@ -371,53 +371,80 @@ const RevisionPage = ({
         </div>
       )}
 
-      <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20">
-        <h2 className="text-2xl font-bold mb-4">Toutes les sourates en révision</h2>
-        
-        <div className="grid gap-4">
-          {surahReviews
-            .filter(r => !isDueForReview(r.next_review_date))
-            .sort((a, b) => new Date(a.next_review_date) - new Date(b.next_review_date))
-            .map(review => {
-              const surah = surahs.find(s => s.number === review.surah_id);
-              if (!surah) return null;
+     <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20">
+  <div className="flex items-center justify-between mb-4">
+    <h2 className="text-2xl font-bold">Toutes les sourates en révision</h2>
+    <span className="text-sm text-white/60 bg-white/10 px-3 py-1 rounded-full">
+      {surahReviews.filter(r => !isDueForReview(r.next_review_date)).length} sourate(s)
+    </span>
+  </div>
+  
+  {/* ✅ Container scrollable avec hauteur fixe et scrollbar stylée */}
+  <div 
+    className="revision-scroll-container"
+    style={{
+      maxHeight: '60vh',
+      overflowY: 'auto',
+      overflowX: 'hidden',
+      paddingRight: '0.5rem',
+      scrollbarWidth: 'thin',
+      scrollbarColor: 'rgba(168, 85, 247, 0.5) rgba(255, 255, 255, 0.05)'
+    }}
+  >
+    <div className="space-y-4">
+      {surahReviews
+        .filter(r => !isDueForReview(r.next_review_date))
+        .sort((a, b) => new Date(a.next_review_date) - new Date(b.next_review_date))
+        .map(review => {
+          const surah = surahs.find(s => s.number === review.surah_id);
+          if (!surah) return null;
 
-              const status = getReviewStatus(review.repetitions, review.interval_days);
-              const retention = calculateRetentionScore(review.repetitions, review.average_difficulty || 2);
-              const nextReview = new Date(review.next_review_date);
-              const daysUntil = Math.ceil((nextReview - new Date()) / (1000 * 60 * 60 * 24));
+          const status = getReviewStatus(review.repetitions, review.interval_days);
+          const retention = calculateRetentionScore(review.repetitions, review.average_difficulty || 2);
+          const nextReview = new Date(review.next_review_date);
+          const daysUntil = Math.ceil((nextReview - new Date()) / (1000 * 60 * 60 * 24));
 
-              return (
-                <div 
-                  key={review.id}
-                  className="bg-white/5 backdrop-blur-lg rounded-xl p-6 border border-white/10"
-                >
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="text-2xl">{getStatusIcon(status)}</span>
-                        <h3 className="text-xl font-bold">{surah.englishName}</h3>
-                      </div>
-                      <div className="text-xl opacity-70 mb-2">{surah.name}</div>
-                      <div className="flex gap-2 flex-wrap">
-                        <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor(status)}`}>
-                          {status}
-                        </span>
-                        <span className="text-xs px-2 py-1 rounded-full bg-blue-500">
-                          Dans {daysUntil} jour{daysUntil > 1 ? 's' : ''}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-2xl font-bold text-green-400">{retention}%</div>
-                      <div className="text-xs text-white/60">{review.repetitions} répétitions</div>
-                    </div>
+          return (
+            <div 
+              key={review.id}
+              className="surah-card bg-white/5 backdrop-blur-lg rounded-xl p-6 border border-white/10 hover:bg-white/10"
+            >
+              <div className="flex justify-between items-start">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-2xl flex-shrink-0">{getStatusIcon(status)}</span>
+                    <h3 className="text-xl font-bold truncate">{surah.englishName}</h3>
+                  </div>
+                  <div className="text-xl opacity-70 mb-2">{surah.name}</div>
+                  <div className="flex gap-2 flex-wrap">
+                    <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor(status)}`}>
+                      {status}
+                    </span>
+                    <span className="text-xs px-2 py-1 rounded-full bg-blue-500">
+                      Dans {daysUntil} jour{daysUntil > 1 ? 's' : ''}
+                    </span>
                   </div>
                 </div>
-              );
-            })}
-        </div>
-      </div>
+                <div className="text-right flex-shrink-0 ml-4">
+                  <div className="text-2xl font-bold text-green-400">{retention}%</div>
+                  <div className="text-xs text-white/60">{review.repetitions} rép.</div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+    </div>
+  </div>
+  
+  {/* Message si aucune sourate à afficher */}
+  {surahReviews.filter(r => !isDueForReview(r.next_review_date)).length === 0 && (
+    <div className="text-center py-12 text-white/60">
+      <Brain className="w-16 h-16 mx-auto mb-4 opacity-50" />
+      <p className="text-lg">Toutes les sourates sont à réviser aujourd'hui ! 🎉</p>
+      <p className="text-sm mt-2 text-white/40">Continue comme ça, c'est excellent !</p>
+    </div>
+  )}
+</div>
 
       <div className="bg-gradient-to-r from-blue-500/20 to-cyan-500/20 backdrop-blur-lg rounded-2xl p-6 border border-blue-500/30">
         <h3 className="text-xl font-bold mb-3 flex items-center gap-2">

@@ -69,16 +69,6 @@ const FocusedLearningPage = ({
   useEffect(() => { surahDataRef.current = surahData; }, [surahData]);
   useEffect(() => { selectedReciterRef.current = selectedReciter; }, [selectedReciter]);
 
-
-  // Bloquer le scroll quand le sélecteur de répétition est ouvert
-useEffect(() => {
-  if (showRepeatMenu) {
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = prev; };
-  }
-}, [showRepeatMenu]);
-
   // charge récitateurs
   useEffect(() => {
     const loadReciters = async () => {
@@ -568,104 +558,18 @@ useEffect(() => {
                   </button>
 
                   {showRepeatMenu && (
-  <div
-    onClick={() => setShowRepeatMenu(false)}
-    className="overlay-fade-in"
-    style={{
-      position: 'fixed',
-      inset: 0,
-      zIndex: 1000,
-      background: 'rgba(0,0,0,0.45)',
-      backdropFilter: 'blur(6px)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '1rem'
-    }}
-    role="dialog"
-    aria-modal="true"
-    aria-label="Sélecteur de répétition"
-  >
-    <div
-      onClick={(e) => e.stopPropagation()}
-      className="modal-pop-in"
-      style={{
-        width: 'min(92vw, 420px)',
-        background: 'rgba(17,24,39,0.95)',
-        color: '#fff',
-        border: '1px solid rgba(255,255,255,0.12)',
-        borderRadius: '0.9rem',
-        boxShadow: '0 30px 80px rgba(0,0,0,0.45)',
-        overflow: 'hidden'
-      }}
-    >
-      {/* En-tête */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '0.9rem 1rem',
-        background: 'rgba(251,191,36,0.12)',
-        borderBottom: '1px solid rgba(251,191,36,0.25)'
-      }}>
-        <div style={{ fontWeight: 700 }}>Répéter le verset</div>
-        <button
-          onClick={() => setShowRepeatMenu(false)}
-          style={{
-            border: 'none',
-            background: 'transparent',
-            color: '#fff',
-            fontSize: '1.25rem',
-            cursor: 'pointer',
-            padding: '0.25rem 0.5rem',
-            lineHeight: 1
-          }}
-          aria-label="Fermer"
-        >
-          ×
-        </button>
-      </div>
-
-      {/* Options */}
-      <div style={{ padding: '1rem', display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: '0.75rem' }}>
-        {[1, 2, 3, 5, 7, 10].map((count) => {
-          const active = repeatCount === count;
-          return (
-            <button
-              key={count}
-              onClick={() => { setRepeatCount(count); setShowRepeatMenu(false); }}
-              style={{
-                padding: '0.85rem 0.75rem',
-                borderRadius: '0.7rem',
-                border: active ? '2px solid #fbbf24' : '1px solid rgba(255,255,255,0.12)',
-                background: active ? 'rgba(251,191,36,0.2)' : 'rgba(255,255,255,0.04)',
-                color: active ? '#fde68a' : 'rgba(255,255,255,0.9)',
-                fontWeight: active ? 700 : 500,
-                cursor: 'pointer',
-                transition: 'transform 0.1s ease, background 0.2s ease',
-              }}
-              onMouseDown={(e) => { e.currentTarget.style.transform = 'scale(0.98)'; }}
-              onMouseUp={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
-            >
-              {count === 1 ? '1 fois' : `${count} fois`}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Astuce / footer */}
-      <div style={{
-        padding: '0.85rem 1rem',
-        borderTop: '1px solid rgba(255,255,255,0.08)',
-        fontSize: '0.85rem',
-        color: 'rgba(255,255,255,0.75)'
-      }}>
-        Astuce : choisis 3 à 5 répétitions pour bien ancrer le verset.
-      </div>
-    </div>
-  </div>
-)}
-
+                    <div style={{ position:'absolute', bottom:'100%', right:0, marginBottom:'0.5rem', backgroundColor:'rgba(255,255,255,0.98)', backdropFilter:'blur(12px)', borderRadius:'0.75rem', boxShadow:'0 25px 50px -12px rgba(0,0,0,0.35)', zIndex:20, border:'1px solid rgba(0,0,0,0.08)', width:'min(70vw,240px)' }}>
+                      {[1,2,3,5,7,10].map(n=>(
+                        <button key={n} onClick={()=>{ setRepeatCount(n); setShowRepeatMenu(false); }}
+                          style={{ width:'100%', textAlign:'left', padding:'0.75rem 1rem', color: repeatCount===n ? '#7c3aed' : '#1f2937', fontWeight: repeatCount===n ? 600 : 400, borderBottom:'1px solid #f3f4f6', background:'transparent', border:'none', cursor:'pointer' }}
+                          onMouseEnter={(e)=>e.currentTarget.style.backgroundColor='#f3e8ff'}
+                          onMouseLeave={(e)=>e.currentTarget.style.backgroundColor='transparent'}
+                        >
+                          {n===1?'1 fois':`${n} fois`}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* audio verset courant (sans scroll auto ici) */}

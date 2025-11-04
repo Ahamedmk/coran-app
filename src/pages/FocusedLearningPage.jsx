@@ -378,7 +378,7 @@ const FocusedLearningPage = ({
   const currentVerseNo = verseNumberAtIndex(progressClamped);
 
   return (
-    <div style={{ width:'100%', maxWidth:'100vw', overflowX:'hidden', padding:'1.5rem 1rem', boxSizing:'border-box' }}>
+    <div style={{ width:'100%', maxWidth:'100vw', overflowX:'hidden', boxSizing:'border-box' }}>
       {/* Célébration */}
       {showCelebration && (
         <div style={{ position:'fixed', inset:0, display:'flex', alignItems:'center', justifyContent:'center', zIndex:50, background:'rgba(0,0,0,0.5)', backdropFilter:'blur(4px)' }}>
@@ -505,7 +505,7 @@ const FocusedLearningPage = ({
       {(() => {
         const topic = getSurahTopic(surah.number);
         return (
-          <div style={{ background:'linear-gradient(90deg, rgba(245,158,11,0.2), rgba(234,179,8,0.2))', backdropFilter:'blur(8px)', borderRadius:'1rem', padding:'1.5rem', border:'1px solid rgba(245,158,11,0.3)', width:'100%', boxSizing:'border-box' }}>
+          <div style={{ background:'linear-gradient(90deg, rgba(245,158,11,0.2), rgba(234,179,8,0.2))', backdropFilter:'blur(8px)', borderRadius:'1rem', padding:'1.5rem',marginTop:'1.5rem', border:'1px solid rgba(245,158,11,0.3)', width:'100%', boxSizing:'border-box' }}>
             <h2 style={{ fontSize:'1.5rem', fontWeight:800, marginBottom:'0.75rem', display:'flex', alignItems:'center', gap:'0.5rem', color:'#fbbf24' }}>
               <Info className="text-amber-400" /> {topic.title}
             </h2>
@@ -518,7 +518,7 @@ const FocusedLearningPage = ({
 
       {/* Bloc verset à mémoriser */}
       {versesLeft > 0 && ayahsFiltered.length > 0 && (
-        <div style={{ background:'linear-gradient(90deg, rgba(168,85,247,0.2), rgba(236,72,153,0.2))', backdropFilter:'blur(8px)', borderRadius:'1rem', padding:'2rem', border:'1px solid rgba(168,85,247,0.3)', boxSizing:'border-box', width:'100%' }}>
+        <div style={{ background:'linear-gradient(90deg, rgba(168,85,247,0.2), rgba(236,72,153,0.2))', backdropFilter:'blur(8px)', borderRadius:'1rem', padding:'2rem', marginTop:'1.5rem', border:'1px solid rgba(168,85,247,0.3)', boxSizing:'border-box', width:'100%' }}>
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'1.5rem', flexWrap:'wrap', gap:'0.5rem' }}>
             <h2 style={{ fontSize:'1.5rem', fontWeight:800, display:'flex', alignItems:'center', gap:'0.5rem' }}>
               <Sparkles className="text-yellow-400" />
@@ -626,7 +626,7 @@ const FocusedLearningPage = ({
       )}
 
       {/* TOUS LES VERSETS */}
-      <div style={{ background:'rgba(255,255,255,0.1)', backdropFilter:'blur(8px)', borderRadius:'1rem', padding:'1.5rem', border:'1px solid rgba(255,255,255,0.2)', width:'100%', boxSizing:'border-box' }}>
+      <div style={{ background:'rgba(255,255,255,0.1)', backdropFilter:'blur(8px)', borderRadius:'1rem', padding:'1.5rem',marginTop:'1.5rem', border:'1px solid rgba(255,255,255,0.2)', width:'100%', boxSizing:'border-box' }}>
         <h2 style={{ fontSize:'1.5rem', fontWeight:800, marginBottom:'1rem', display:'flex', alignItems:'center', gap:'0.5rem' }}>
           <BookOpen className="text-blue-400" />
           Tous les versets

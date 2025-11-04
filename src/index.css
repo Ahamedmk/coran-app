@@ -73,3 +73,31 @@ button:focus-visible {
     background-color: #f9f9f9;
   }
 }
+
+/* ==== Modal repeat animations ==== */
+@keyframes overlayFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes modalPopIn {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0)   scale(1); }
+}
+
+/* classes utilitaires */
+.overlay-fade-in {
+  animation: overlayFadeIn 180ms ease-out forwards;
+}
+.modal-pop-in {
+  animation: modalPopIn 220ms cubic-bezier(.22,.9,.24,1) forwards;
+  transform-origin: center;
+}
+
+/* Accessibilité : réduit les mouvements si demandé */
+@media (prefers-reduced-motion: reduce) {
+  .overlay-fade-in,
+  .modal-pop-in {
+    animation: none !important;
+  }
+}
+

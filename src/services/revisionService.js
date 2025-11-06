@@ -1,34 +1,46 @@
 // src/services/revisionService.js
 // Service pour gérer les révisions avec Supabase
 
-
 import { supabase } from '../config/supabase';
-import { 
-  calculateNextInterval, 
+import {
+  calculateNextInterval,
   calculateNextReviewDate,
   getReviewStatus,
   REVIEW_STATUS,
-  calculateRetentionScore
+  calculateRetentionScore, // si inutilisé chez toi, tu peux le retirer
 } from './revisionSystem';
+
+// --- Helper: récupérer UNE révision pour un user/sourate
+async function fetchReview(userId, surahId) {
+  const { data, error } = await supabase
+    .from('surah_reviews')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('surah_id', surahId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data || null;
+}
 
 export const revisionService = {
   /**
    * Récupérer toutes les révisions d'un utilisateur
    */
-  getUserReviews: async (userId) => {
+  async getUserReviews(userId) {
     try {
-      const { data, error } = await supabase.from('surah_reviews').select('*');
-      
+      const { data, error } = await supabase
+        .from('surah_reviews')
+        .select('*')
+        .eq('user_id', userId);
+
       if (error) {
         console.error('Erreur récupération révisions:', error);
         return [];
       }
-      
-      // Filtrer par user_id côté client (car notre supabase custom ne supporte pas les filtres avancés)
-      const userReviews = data ? data.filter(r => r.user_id === userId) : [];
-      return userReviews;
-    } catch (error) {
-      console.error('Erreur:', error);
+      return data || [];
+    } catch (err) {
+      console.error('Erreur getUserReviews:', err);
       return [];
     }
   },
@@ -36,19 +48,19 @@ export const revisionService = {
   /**
    * Récupérer les révisions dues aujourd'hui
    */
-  getDueReviews: async (userId) => {
+  async getDueReviews(userId) {
     try {
-      const allReviews = await revisionService.getUserReviews(userId);
-      const now = new Date();
-      now.setHours(0, 0, 0, 0);
-      
-      return allReviews.filter(review => {
-        const nextReview = new Date(review.next_review_date);
-        nextReview.setHours(0, 0, 0, 0);
-        return nextReview <= now;
+      const all = await this.getUserReviews(userId);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      return all.filter((r) => {
+        const d = new Date(r.next_review_date);
+        d.setHours(0, 0, 0, 0);
+        return d <= today;
       });
-    } catch (error) {
-      console.error('Erreur:', error);
+    } catch (err) {
+      console.error('Erreur getDueReviews:', err);
       return [];
     }
   },
@@ -56,12 +68,10 @@ export const revisionService = {
   /**
    * Créer une nouvelle révision quand une sourate est complétée
    */
-  createReview: async (userId, surahId) => {
+  async createReview(userId, surahId) {
     try {
-      // Vérifier si la révision existe déjà
-      const existing = await revisionService.getUserReviews(userId);
-      if (existing.find(r => r.surah_id === surahId)) {
-        console.log('Révision déjà existante pour cette sourate');
+      const existing = await fetchReview(userId, surahId);
+      if (existing) {
         return { success: true, message: 'Already exists' };
       }
 
@@ -69,7 +79,7 @@ export const revisionService = {
       tomorrow.setDate(tomorrow.getDate() + 1);
       tomorrow.setHours(9, 0, 0, 0);
 
-      const reviewData = {
+      const payload = {
         user_id: userId,
         surah_id: surahId,
         repetitions: 0,
@@ -81,10 +91,14 @@ export const revisionService = {
         total_reviews: 0,
         perfect_count: 0,
         forgot_count: 0,
-        status: REVIEW_STATUS.NEW
+        status: REVIEW_STATUS.NEW,
       };
 
-      const { data, error } = await supabase.from('surah_reviews').insert(reviewData);
+      const { data, error } = await supabase
+        .from('surah_reviews')
+        .insert(payload)
+        .select()
+        .maybeSingle();
 
       if (error) {
         console.error('Erreur création révision:', error);
@@ -92,221 +106,105 @@ export const revisionService = {
       }
 
       return { success: true, data };
-    } catch (error) {
-      console.error('Erreur:', error);
-      return { success: false, error };
+    } catch (err) {
+      console.error('Erreur createReview:', err);
+      return { success: false, error: err };
     }
   },
 
   /**
    * Mettre à jour une révision après avoir révisé
    */
-  updateReview: async (userId, surahId, difficulty) => {
+  async updateReview(userId, surahId, difficulty) {
     try {
-      // Récupérer la révision actuelle
-      const allReviews = await revisionService.getUserReviews(userId);
-      const currentReview = allReviews.find(r => r.surah_id === surahId);
+      // 1) Révision courante
+      const current = await fetchReview(userId, surahId);
+      if (!current) return { success: false, error: 'Révision non trouvée' };
 
-      if (!currentReview) {
-        console.error('Révision non trouvée');
-        return { success: false, error: 'Révision non trouvée' };
-      }
-
-      // Calculer le nouvel intervalle en utilisant revisionSystem
+      // 2) Calculs
       const newInterval = calculateNextInterval(
-        currentReview.interval_days,
+        current.interval_days,
         difficulty,
-        currentReview.repetitions
+        current.repetitions
       );
-
-      // Calculer la prochaine date de révision
       const nextReviewDate = calculateNextReviewDate(newInterval);
 
-      // Calculer le nouveau ease_factor (SM-2)
-      let newEaseFactor = currentReview.ease_factor || 2.5;
+      let newEase = current.ease_factor || 2.5;
       if (difficulty >= 2) {
         const q = difficulty;
-        newEaseFactor = Math.max(1.3, newEaseFactor + (0.1 - (3 - q) * (0.08 + (3 - q) * 0.02)));
+        newEase = Math.max(
+          1.3,
+          newEase + (0.1 - (3 - q) * (0.08 + (3 - q) * 0.02))
+        );
       } else {
-        newEaseFactor = Math.max(1.3, newEaseFactor - 0.2);
+        newEase = Math.max(1.3, newEase - 0.2);
       }
 
-      // Mettre à jour les compteurs
-      const newRepetitions = difficulty >= 2 ? currentReview.repetitions + 1 : 0;
-      const newTotalReviews = currentReview.total_reviews + 1;
-      const newPerfectCount = currentReview.perfect_count + (difficulty === 4 ? 1 : 0);
-      const newForgotCount = currentReview.forgot_count + (difficulty === 0 ? 1 : 0);
+      const newReps = difficulty >= 2 ? (current.repetitions || 0) + 1 : 0;
+      const newTotalReviews = (current.total_reviews || 0) + 1;
+      const newPerfect = (current.perfect_count || 0) + (difficulty === 4 ? 1 : 0);
+      const newForgot = (current.forgot_count || 0) + (difficulty === 0 ? 1 : 0);
 
-      // Calculer la nouvelle difficulté moyenne
-      const newAverageDifficulty = (
-        (currentReview.average_difficulty * currentReview.total_reviews) + difficulty
-      ) / newTotalReviews;
+      const newAvgDiff =
+        (((current.average_difficulty || 0) * (current.total_reviews || 0)) + difficulty) /
+        newTotalReviews;
 
-      // Déterminer le nouveau statut en utilisant revisionSystem
-      const newStatus = getReviewStatus(newRepetitions, newInterval);
+      const newStatus = getReviewStatus(newReps, newInterval);
 
-      // Données à mettre à jour
       const updateData = {
-        repetitions: newRepetitions,
+        repetitions: newReps,
         interval_days: newInterval,
-        ease_factor: parseFloat(newEaseFactor.toFixed(2)),
+        ease_factor: parseFloat(newEase.toFixed(2)),
         last_review_date: new Date().toISOString(),
         next_review_date: nextReviewDate.toISOString(),
-        average_difficulty: parseFloat(newAverageDifficulty.toFixed(2)),
+        average_difficulty: parseFloat(newAvgDiff.toFixed(2)),
         total_reviews: newTotalReviews,
-        perfect_count: newPerfectCount,
-        forgot_count: newForgotCount,
-        status: newStatus
+        perfect_count: newPerfect,
+        forgot_count: newForgot,
+        status: newStatus,
       };
 
-      // Mettre à jour dans Supabase
-      // Notre client custom nécessite une approche différente
-      const updateResult = await supabase.from('surah_reviews').update(updateData);
-      const { data, error } = await updateResult.eq('id', currentReview.id);
+      // 3) CORRECTION : filtres AVANT l'attente
+      const { data, error } = await supabase
+        .from('surah_reviews')
+        .update(updateData)
+        .match({ id: current.id, user_id: userId })
+        .select()
+        .maybeSingle();
 
       if (error) {
         console.error('Erreur mise à jour révision:', error);
         return { success: false, error };
       }
 
-      // Ajouter dans l'historique
-      await revisionService.addToHistory(
+      // 4) Historique
+      await this.addToHistory(
         userId,
         surahId,
         difficulty,
-        currentReview.interval_days,
+        current.interval_days,
         newInterval
       );
 
-      return { 
-        success: true, 
-        data: updateData,
-        nextReviewDate: nextReviewDate,
-        newInterval: newInterval
-      };
-    } catch (error) {
-      console.error('Erreur:', error);
-      return { success: false, error };
-    }
-  },
-
-  /**
-   * Ajouter une entrée dans l'historique des révisions
-   */
-  addToHistory: async (userId, surahId, difficulty, intervalBefore, intervalAfter) => {
-    try {
-      const historyData = {
-        user_id: userId,
-        surah_id: surahId,
-        difficulty: difficulty,
-        interval_before: intervalBefore,
-        interval_after: intervalAfter,
-        review_date: new Date().toISOString()
-      };
-
-      const { data, error } = await supabase.from('review_history').insert(historyData);
-
-      if (error) {
-        console.error('Erreur ajout historique:', error);
-        return { success: false, error };
-      }
-
-      return { success: true, data };
-    } catch (error) {
-      console.error('Erreur:', error);
-      return { success: false, error };
-    }
-  },
-
-  /**
-   * Obtenir l'historique des révisions d'une sourate
-   */
-  getReviewHistory: async (userId, surahId, limit = 10) => {
-    try {
-      const { data, error } = await supabase.from('review_history').select('*');
-      
-      if (error) {
-        console.error('Erreur historique:', error);
-        return [];
-      }
-
-      // Filtrer et trier côté client
-      const history = data
-        ? data
-            .filter(h => h.user_id === userId && h.surah_id === surahId)
-            .sort((a, b) => new Date(b.review_date) - new Date(a.review_date))
-            .slice(0, limit)
-        : [];
-
-      return history;
-    } catch (error) {
-      console.error('Erreur:', error);
-      return [];
-    }
-  },
-
-  /**
-   * Obtenir les statistiques de révision globales
-   */
-  getReviewStats: async (userId) => {
-    try {
-      const reviews = await revisionService.getUserReviews(userId);
-      
-      if (!reviews || reviews.length === 0) {
-        return {
-          total: 0,
-          dueToday: 0,
-          learning: 0,
-          reviewing: 0,
-          mastered: 0,
-          averageDifficulty: 0,
-          totalReviewsDone: 0
-        };
-      }
-
-      const now = new Date();
-      now.setHours(0, 0, 0, 0);
-
-      const stats = {
-        total: reviews.length,
-        dueToday: reviews.filter(r => {
-          const nextReview = new Date(r.next_review_date);
-          nextReview.setHours(0, 0, 0, 0);
-          return nextReview <= now;
-        }).length,
-        learning: reviews.filter(r => r.status === REVIEW_STATUS.LEARNING).length,
-        reviewing: reviews.filter(r => r.status === REVIEW_STATUS.REVIEWING).length,
-        mastered: reviews.filter(r => r.status === REVIEW_STATUS.MASTERED).length,
-        averageDifficulty: reviews.reduce((sum, r) => sum + (r.average_difficulty || 0), 0) / reviews.length,
-        totalReviewsDone: reviews.reduce((sum, r) => sum + (r.total_reviews || 0), 0)
-      };
-
-      return stats;
-    } catch (error) {
-      console.error('Erreur:', error);
       return {
-        total: 0,
-        dueToday: 0,
-        learning: 0,
-        reviewing: 0,
-        mastered: 0,
-        averageDifficulty: 0,
-        totalReviewsDone: 0
+        success: true,
+        data,
+        nextReviewDate,
+        newInterval,
       };
+    } catch (err) {
+      console.error('Erreur updateReview:', err);
+      return { success: false, error: err };
     }
   },
 
   /**
    * Réinitialiser une révision (recommencer depuis le début)
    */
-  resetReview: async (userId, surahId) => {
+  async resetReview(userId, surahId) {
     try {
-      const allReviews = await revisionService.getUserReviews(userId);
-      const review = allReviews.find(r => r.surah_id === surahId);
-      
-      if (!review) {
-        return { success: false, error: 'Révision non trouvée' };
-      }
+      const review = await fetchReview(userId, surahId);
+      if (!review) return { success: false, error: 'Révision non trouvée' };
 
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
@@ -317,23 +215,129 @@ export const revisionService = {
         interval_days: 1,
         ease_factor: 2.5,
         next_review_date: tomorrow.toISOString(),
-        status: REVIEW_STATUS.NEW
+        status: REVIEW_STATUS.NEW,
       };
 
-      const updateResult = await supabase.from('surah_reviews').update(resetData);
-      const { data, error } = await updateResult.eq('id', review.id);
+      const { data, error } = await supabase
+        .from('surah_reviews')
+        .update(resetData)
+        .match({ id: review.id, user_id: userId })
+        .select()
+        .maybeSingle();
+
+      if (error) return { success: false, error };
+      return { success: true, data };
+    } catch (err) {
+      console.error('Erreur resetReview:', err);
+      return { success: false, error: err };
+    }
+  },
+
+  /**
+   * Ajouter une entrée d'historique
+   */
+  async addToHistory(userId, surahId, difficulty, intervalBefore, intervalAfter) {
+    try {
+      const payload = {
+        user_id: userId,
+        surah_id: surahId,
+        difficulty,
+        interval_before: intervalBefore,
+        interval_after: intervalAfter,
+        review_date: new Date().toISOString(),
+      };
+
+      const { data, error } = await supabase
+        .from('review_history')
+        .insert(payload)
+        .select()
+        .maybeSingle();
 
       if (error) {
-        console.error('Erreur réinitialisation:', error);
+        console.error('Erreur ajout historique:', error);
         return { success: false, error };
       }
-
       return { success: true, data };
-    } catch (error) {
-      console.error('Erreur:', error);
-      return { success: false, error };
+    } catch (err) {
+      console.error('Erreur addToHistory:', err);
+      return { success: false, error: err };
     }
-  }
+  },
+
+  /**
+   * Obtenir l'historique pour une sourate
+   */
+  async getReviewHistory(userId, surahId, limit = 10) {
+    try {
+      const { data, error } = await supabase
+        .from('review_history')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('surah_id', surahId)
+        .order('review_date', { ascending: false })
+        .limit(limit);
+
+      if (error) {
+        console.error('Erreur historique:', error);
+        return [];
+      }
+      return data || [];
+    } catch (err) {
+      console.error('Erreur getReviewHistory:', err);
+      return [];
+    }
+  },
+
+  /**
+   * Obtenir des statistiques globales sur les révisions
+   */
+  async getReviewStats(userId) {
+    try {
+      const reviews = await this.getUserReviews(userId);
+      if (!reviews || reviews.length === 0) {
+        return {
+          total: 0,
+          dueToday: 0,
+          learning: 0,
+          reviewing: 0,
+          mastered: 0,
+          averageDifficulty: 0,
+          totalReviewsDone: 0,
+        };
+      }
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const dueToday = reviews.filter((r) => {
+        const d = new Date(r.next_review_date);
+        d.setHours(0, 0, 0, 0);
+        return d <= today;
+      }).length;
+
+      return {
+        total: reviews.length,
+        dueToday,
+        learning: reviews.filter((r) => r.status === REVIEW_STATUS.LEARNING).length,
+        reviewing: reviews.filter((r) => r.status === REVIEW_STATUS.REVIEWING).length,
+        mastered: reviews.filter((r) => r.status === REVIEW_STATUS.MASTERED).length,
+        averageDifficulty:
+          reviews.reduce((s, r) => s + (r.average_difficulty || 0), 0) / reviews.length,
+        totalReviewsDone: reviews.reduce((s, r) => s + (r.total_reviews || 0), 0),
+      };
+    } catch (err) {
+      console.error('Erreur getReviewStats:', err);
+      return {
+        total: 0,
+        dueToday: 0,
+        learning: 0,
+        reviewing: 0,
+        mastered: 0,
+        averageDifficulty: 0,
+        totalReviewsDone: 0,
+      };
+    }
+  },
 };
 
 export default revisionService;

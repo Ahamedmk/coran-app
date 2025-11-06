@@ -202,7 +202,7 @@ const AuthPage = ({ onAuthSuccess }) => {
         </div>
 
         {/* Demo Account */}
-        <div className="mt-6 text-center">
+        {/* <div className="mt-6 text-center">
           <button
   onClick={() => {
     setEmail('demo@exemple.com');
@@ -224,7 +224,7 @@ const AuthPage = ({ onAuthSuccess }) => {
 >
   Utiliser le compte de démonstration
 </button>
-        </div>
+        </div> */}
       </div>
     </div>
   );

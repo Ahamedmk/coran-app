@@ -657,7 +657,8 @@ const App = () => {
               surahs={surahs}
               learnedSurahs={learnedSurahs}
               onSelectSurah={handleSelectSurah}
-              onBack={() => {}}
+              hideLearned={false}        // ⬅️ on enlève les sourates déjà apprises
+   showLearnedBadge={true} // (optionnel) utile seulement si hideLearned={false}
             />
           )}
 
